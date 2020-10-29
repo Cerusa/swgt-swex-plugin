@@ -1,0 +1,1 @@
+asar pack SWGTLogger SWGTLogger.asar
