@@ -169,48 +169,10 @@ module.exports = {
     var thisSiteURL = "https://swgt.io";
     if(config.Config.Plugins[pluginName].siteURL != "" && config.Config.Plugins[pluginName].siteURL.includes("swgt.io"))
       thisSiteURL = config.Config.Plugins[pluginName].siteURL;
-
-    if(
-        "https://ninebandits.swgt.io" == thisSiteURL &&
-        (
-            "fbcc90e8-8ca7-49a1-a6c0-03bfba2b7774" == config.Config.Plugins[pluginName].apiKey ||
-            "fcad1893-5b53-49f3-b879-6627670adacf" == config.Config.Plugins[pluginName].apiKey
-        )
-      ){
-      uploadToDevWebService(proxy, config, req, resp);
-    }
+    
     let options = {
       method: 'post',
       uri: thisSiteURL+'/api/v1?apiKey='+config.Config.Plugins[pluginName].apiKey,
-      json: true,
-      //body: JSON.stringify(resp, true, 2)
-      body: resp
-    };
-
-    request(options, (error, response) => {
-      if (error) {
-        proxy.log({ type: 'error', source: 'plugin', name: this.pluginName, message: `Error: ${error.message}` });
-        return;
-      }
-
-      if (response.statusCode === 200) {
-        proxy.log({ type: 'success', source: 'plugin', name: this.pluginName, message: `${command} uploaded successfully` });
-      } else {
-        proxy.log({
-          type: 'error',
-          source: 'plugin',
-          name: this.pluginName,
-          message: `Upload failed: Server responded with code: ${response.statusCode} = ${response.body}`
-        });
-      }
-    });
-  },
-  uploadToDevWebService(proxy, config, req, resp) {
-    const { command } = req;
-
-    let options = {
-      method: 'post',
-      uri: 'https://cerusa.swgt.io/api/v1?apiKey='+config.Config.Plugins[pluginName].apiKey,
       json: true,
       //body: JSON.stringify(resp, true, 2)
       body: resp
