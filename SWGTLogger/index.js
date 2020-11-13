@@ -9,13 +9,13 @@ module.exports = {
     saveToFile: false,
     sendCharacterJSON: true,
     apiKey: '',
-    apiURL: ''
+    siteURL: ''
   },
   defaultConfigDetails: {
     saveToFile: {label: 'Save to file as well?'},
     sendCharacterJSON: {label: 'Send Character JSON?'},
     apiKey: { label: 'SWGT API key (On your SWGT profile page)', type: 'input' },
-    apiURL: { label: 'SWGT API URL  (On your SWGT profile page)', type: 'input' }
+    siteURL: { label: 'SWGT API URL  (On your SWGT profile page)', type: 'input' }
   },
   pluginName,
   pluginDescription: 'For SWGT Patreon subscribers to automatically '+
@@ -160,7 +160,7 @@ module.exports = {
   },
   hasAPISettings(config){
     if (!config.Config.Plugins[pluginName].apiKey) return false;
-    if (!config.Config.Plugins[pluginName].apiURL) return false;
+    if (!config.Config.Plugins[pluginName].siteURL) return false;
     return true;
   },
   hasCacheMatch(proxy, cache, resp) {
@@ -189,13 +189,13 @@ module.exports = {
     }
     const { command } = req;
 
-    var thisapiURL = "https://swgt.io";
-    if(config.Config.Plugins[pluginName].apiURL != "" && config.Config.Plugins[pluginName].apiURL.includes("swgt.io"))
-      thisapiURL = config.Config.Plugins[pluginName].apiURL;
+    var thissiteURL = "https://swgt.io";
+    if(config.Config.Plugins[pluginName].siteURL != "" && config.Config.Plugins[pluginName].siteURL.includes("swgt.io"))
+      thissiteURL = config.Config.Plugins[pluginName].siteURL;
 
     let options = {
       method: 'post',
-      uri: thisapiURL+'/api/v1?apiKey='+config.Config.Plugins[pluginName].apiKey,
+      uri: thissiteURL+'/api/v1?apiKey='+config.Config.Plugins[pluginName].apiKey,
       json: true,
       //body: JSON.stringify(resp, true, 2)
       body: resp
