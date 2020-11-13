@@ -24,94 +24,38 @@ module.exports = {
   init(proxy, config) {
     cache={};
 
-    //Character JSON and Guild Member List
-    proxy.on('HubUserLogin', (req, resp) => {
-      if (!config.Config.Plugins[pluginName].sendCharacterJSON) return;
-      
-      this.writeToFile(proxy, req, resp);
-      if (this.hasCacheMatch(proxy, config, req, resp, cache)) return;
-      this.uploadToWebService(proxy, config, req, resp);
-    });
+    var listenToCommands = [
+      //Character JSON and Guild Member List
+      'HubUserLogin',
 
-    //Guild Info
-    proxy.on('getGuildAttendInfo', (req, resp) => {
-      this.writeToFile(proxy, req, resp);
-      if (this.hasCacheMatch(proxy, config, req, resp, cache)) return;
-      this.uploadToWebService(proxy, config, req, resp);
-    });
-    proxy.on('GetGuildInfo', (req, resp) => {
-      this.writeToFile(proxy, req, resp);
-      if (this.hasCacheMatch(proxy, config, req, resp, cache)) return;
-      this.uploadToWebService(proxy, config, req, resp);
-    });
+      //Guild Info
+      'getGuildAttendInfo',
+      'GetGuildInfo',
 
-    //Guild War Hooks
-    proxy.on('GetGuildWarBattleLogByGuildId', (req, resp) => {
-      this.writeToFile(proxy, req, resp);
-      if (this.hasCacheMatch(proxy, config, req, resp, cache)) return;
-      this.uploadToWebService(proxy, config, req, resp);
-    });
-    proxy.on('GetGuildWarBattleLogByWizardId', (req, resp) => {
-      this.writeToFile(proxy, req, resp);
-      if (this.hasCacheMatch(proxy, config, req, resp, cache)) return;
-      this.uploadToWebService(proxy, config, req, resp);
-    });
-    proxy.on('GetGuildWarMatchLog', (req, resp) => {
-      this.writeToFile(proxy, req, resp);
-      if (this.hasCacheMatch(proxy, config, req, resp, cache)) return;
-      this.uploadToWebService(proxy, config, req, resp);
-    });
-    proxy.on('GetGuildWarRanking', (req, resp) => {
-      this.writeToFile(proxy, req, resp);
-      if (this.hasCacheMatch(proxy, config, req, resp, cache)) return;
-      this.uploadToWebService(proxy, config, req, resp);
-    });
+      //Guild War
+      'GetGuildWarBattleLogByGuildId',
+      'GetGuildWarBattleLogByWizardId',
+      'GetGuildWarMatchLog',
+      'GetGuildWarRanking',
 
-    //Siege
-    proxy.on('GetGuildSiegeBattleLogByWizardId', (req, resp) => {
-      this.writeToFile(proxy, req, resp);
-      if (this.hasCacheMatch(proxy, config, req, resp, cache)) return;
-      this.uploadToWebService(proxy, config, req, resp);
-    });
-    proxy.on('GetGuildSiegeBattleLog', (req, resp) => {
-      this.writeToFile(proxy, req, resp);
-      if (this.hasCacheMatch(proxy, config, req, resp, cache)) return;
-      this.uploadToWebService(proxy, config, req, resp);
-    });
-    proxy.on('GetGuildSiegeMatchupInfo', (req, resp) => {
-      this.writeToFile(proxy, req, resp);
-      if (this.hasCacheMatch(proxy, config, req, resp, cache)) return;
-      this.uploadToWebService(proxy, config, req, resp);
-    });
-    proxy.on('GetGuildSiegeBaseDefenseUnitList', (req, resp) => {
-      this.writeToFile(proxy, req, resp);
-      if (this.hasCacheMatch(proxy, config, req, resp, cache)) return;
-      this.uploadToWebService(proxy, config, req, resp);
-    });
-    proxy.on('GetGuildSiegeBaseDefenseUnitListPreset', (req, resp) => {
-      this.writeToFile(proxy, req, resp);
-      if (this.hasCacheMatch(proxy, config, req, resp, cache)) return;
-      this.uploadToWebService(proxy, config, req, resp);
-    });
-    proxy.on('GetGuildSiegeRankingInfo', (req, resp) => {
-      this.writeToFile(proxy, req, resp);
-      if (this.hasCacheMatch(proxy, config, req, resp, cache)) return;
-      this.uploadToWebService(proxy, config, req, resp);
-    });
+      //Siege
+      'GetGuildSiegeBattleLogByWizardId',
+      'GetGuildSiegeBattleLog',
+      'GetGuildSiegeMatchupInfo',
+      'GetGuildSiegeBaseDefenseUnitList',
+      'GetGuildSiegeBaseDefenseUnitListPreset',
+      'GetGuildSiegeRankingInfo'
 
-    /*
-    //Lab
-    proxy.on('GetGuildMazeContributeList', (req, resp) => {
-      this.writeToFile(proxy, req, resp);
-      if (this.hasCacheMatch(proxy, config, req, resp, cache)) return;
-      this.uploadToWebService(proxy, config, req, resp);
+      //Labyrinth
+      //'GetGuildMazeContributeList',
+      //'GetGuildMazeMemberInfoList'
+    ];
+
+    listenToCommands.forEach(function(command){
+      proxy.on(command, (req, resp) => {
+        this.processRequest(command,proxy,config,req,resp,cache);
+      });
     });
-    proxy.on('GetGuildMazeMemberInfoList', (req, resp) => {
-      this.writeToFile(proxy, req, resp);
-      if (this.hasCacheMatch(proxy, config, req, resp, cache)) return;
-      this.uploadToWebService(proxy, config, req, resp);
-    });
-    */
   },
   hasAPISettings(config){
     if (!config.Config.Plugins[pluginName].enabled) return false;
@@ -130,8 +74,16 @@ module.exports = {
     }
     return true;
   },
+  processRequest(command, proxy, config, req, resp, cache) {
+    if(command == "HubUserLogin")
+      if (!config.Config.Plugins[pluginName].sendCharacterJSON) return;
+      
+    this.writeToFile(proxy, req, resp);
+    if (this.hasCacheMatch(proxy, config, req, resp, cache)) return;
+    this.uploadToWebService(proxy, config, req, resp);
+  },
   hasCacheMatch(proxy, config, req, resp, cache) {
-    if (!this.hasAPISettings(config)) return;
+    if (!this.hasAPISettings(config)) return false;
 
     action = resp['command']
     if ('log_type' in resp) {action += '_' + resp['log_type']};
