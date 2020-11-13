@@ -89,6 +89,23 @@ module.exports = {
     if ('log_type' in resp) {action += '_' + resp['log_type']};
 
     if ('ts_val' in resp) {delete resp['ts_val']};
+    if(action == 'HubUserLogin'){
+      var requiredHubUserLoginElements = [
+        'wizard_info',
+        'guild',
+        'unit_list',
+        'runes',
+        'artifacts',
+        'tvalue'
+      ];
+
+      //Purge all unused variables
+      for (var key in resp) {
+        if (resp.hasOwnProperty(key)){
+            if(!requiredHubUserLoginElements.includes(key)){delete resp[key]};
+        }
+      }
+    }
     if(
         action != 'HubUserLogin' && 
         action != 'VisitFriend' && 
