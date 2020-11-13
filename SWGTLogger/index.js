@@ -80,17 +80,7 @@ module.exports = {
     if(command == "HubUserLogin")
       if (!config.Config.Plugins[pluginName].sendCharacterJSON) return;
       
-    this.writeToFile(proxy, req, resp);
-    if (this.hasCacheMatch(proxy, config, req, resp, cache)) return;
-    this.uploadToWebService(proxy, config, req, resp);
-  },
-  hasCacheMatch(proxy, config, req, resp, cache) {
-    if (!this.hasAPISettings(config)) return false;
-
-    var action = resp['command'];
-    if ('log_type' in resp) {action += '_' + resp['log_type']};
-
-    if ('ts_val' in resp) {delete resp['ts_val']};
+    //Clean HubUserLogin resp
     if(resp['command'] == 'HubUserLogin'){
       var requiredHubUserLoginElements = [
         'command',
@@ -109,6 +99,18 @@ module.exports = {
         }
       }
     }
+
+    this.writeToFile(proxy, req, resp);
+    if (this.hasCacheMatch(proxy, config, req, resp, cache)) return;
+    this.uploadToWebService(proxy, config, req, resp);
+  },
+  hasCacheMatch(proxy, config, req, resp, cache) {
+    if (!this.hasAPISettings(config)) return false;
+
+    var action = resp['command'];
+    if ('log_type' in resp) {action += '_' + resp['log_type']};
+    if ('ts_val' in resp) {delete resp['ts_val']};
+    
     if(
       resp['command'] != 'HubUserLogin' && 
       resp['command'] != 'VisitFriend' && 
