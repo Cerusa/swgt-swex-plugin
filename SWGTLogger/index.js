@@ -51,11 +51,13 @@ module.exports = {
       //'GetGuildMazeMemberInfoList'
     ];
 
-    listenToCommands.forEach(function(command){
-      proxy.on(command, (req, resp) => {
-        this.processRequest(command,proxy,config,req,resp,cache);
-      });
-    });
+    for(var commandIndex in listenToCommands){
+      var command = listenToCommands[commandIndex];
+        proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: "Binding to command: "+command });
+        proxy.on(command, (req, resp) => {
+          this.processRequest(command,proxy,config,req,resp,cache);
+        });
+    }
   },
   hasAPISettings(config){
     if (!config.Config.Plugins[pluginName].enabled) return false;
@@ -91,6 +93,7 @@ module.exports = {
     if ('ts_val' in resp) {delete resp['ts_val']};
     if(action == 'HubUserLogin'){
       var requiredHubUserLoginElements = [
+        'command',
         'wizard_info',
         'guild',
         'unit_list',
