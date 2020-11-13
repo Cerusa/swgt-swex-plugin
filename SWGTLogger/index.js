@@ -18,12 +18,14 @@ module.exports = {
   pluginName,
   pluginDescription: 'Automatically upload guild battle information to SWGT.',
   init(proxy, config) {
+    cache={};
     //Guild Info
     proxy.on('getGuildAttendInfo', (req, resp) => {
       if (!config.Config.Plugins[pluginName].enabled) return;
       if(config.Config.Plugins[pluginName].saveToFile){
         this.writeToFile(proxy, req, resp, 'swgt-getGuildAttendInfo-'+new Date().getTime()+'.json');
       }
+      if (this.hasCacheMatch(proxy, cache, resp)) return;
       this.uploadToWebService(proxy, config, req, resp);
     });
     proxy.on('GetGuildInfo', (req, resp) => {
@@ -31,6 +33,7 @@ module.exports = {
       if(config.Config.Plugins[pluginName].saveToFile){
         this.writeToFile(proxy, req, resp, 'swgt-GetGuildInfo-'+new Date().getTime()+'.json');
       }
+      if (this.hasCacheMatch(proxy, cache, resp)) return;
       this.uploadToWebService(proxy, config, req, resp);
     });
 
@@ -40,6 +43,7 @@ module.exports = {
       if(config.Config.Plugins[pluginName].saveToFile){
         this.writeToFile(proxy, req, resp, 'swgt-GetGuildWarBattleLogByGuildId-'+new Date().getTime()+'.json');
       }
+      if (this.hasCacheMatch(proxy, cache, resp)) return;
       this.uploadToWebService(proxy, config, req, resp);
     });
     proxy.on('GetGuildWarBattleLogByWizardId', (req, resp) => {
@@ -47,6 +51,7 @@ module.exports = {
       if(config.Config.Plugins[pluginName].saveToFile){
         this.writeToFile(proxy, req, resp, 'swgt-GetGuildWarBattleLogByWizardId-'+new Date().getTime()+'.json');
       }
+      if (this.hasCacheMatch(proxy, cache, resp)) return;
       this.uploadToWebService(proxy, config, req, resp);
     });
     proxy.on('GetGuildWarMatchLog', (req, resp) => {
@@ -54,6 +59,7 @@ module.exports = {
       if(config.Config.Plugins[pluginName].saveToFile){
         this.writeToFile(proxy, req, resp, 'swgt-GetGuildWarMatchLog-'+new Date().getTime()+'.json');
       }
+      if (this.hasCacheMatch(proxy, cache, resp)) return;
       this.uploadToWebService(proxy, config, req, resp);
     });
     proxy.on('GetGuildWarRanking', (req, resp) => {
@@ -61,6 +67,7 @@ module.exports = {
       if(config.Config.Plugins[pluginName].saveToFile){
         this.writeToFile(proxy, req, resp, 'swgt-GetGuildWarRanking-'+new Date().getTime()+'.json');
       }
+      if (this.hasCacheMatch(proxy, cache, resp)) return;
       this.uploadToWebService(proxy, config, req, resp);
     });
 
@@ -70,6 +77,7 @@ module.exports = {
       if(config.Config.Plugins[pluginName].saveToFile){
         this.writeToFile(proxy, req, resp, 'swgt-GetGuildSiegeBattleLogByWizardId-'+new Date().getTime()+'.json');
       }
+      if (this.hasCacheMatch(proxy, cache, resp)) return;
       this.uploadToWebService(proxy, config, req, resp);
     });
     proxy.on('GetGuildSiegeBattleLog', (req, resp) => {
@@ -77,6 +85,7 @@ module.exports = {
       if(config.Config.Plugins[pluginName].saveToFile){
         this.writeToFile(proxy, req, resp, 'swgt-GetGuildSiegeBattleLog-'+new Date().getTime()+'.json');
       }
+      if (this.hasCacheMatch(proxy, cache, resp)) return;
       this.uploadToWebService(proxy, config, req, resp);
     });
     proxy.on('GetGuildSiegeMatchupInfo', (req, resp) => {
@@ -84,6 +93,7 @@ module.exports = {
       if(config.Config.Plugins[pluginName].saveToFile){
         this.writeToFile(proxy, req, resp, 'swgt-GetGuildSiegeMatchupInfo-'+new Date().getTime()+'.json');
       }
+      if (this.hasCacheMatch(proxy, cache, resp)) return;
       this.uploadToWebService(proxy, config, req, resp);
     });
     proxy.on('GetGuildSiegeBaseDefenseUnitList', (req, resp) => {
@@ -91,6 +101,7 @@ module.exports = {
       if(config.Config.Plugins[pluginName].saveToFile){
         this.writeToFile(proxy, req, resp, 'swgt-GetGuildSiegeBaseDefenseUnitList-'+new Date().getTime()+'.json');
       }
+      if (this.hasCacheMatch(proxy, cache, resp)) return;
       this.uploadToWebService(proxy, config, req, resp);
     });
     proxy.on('GetGuildSiegeBaseDefenseUnitListPreset', (req, resp) => {
@@ -98,6 +109,7 @@ module.exports = {
       if(config.Config.Plugins[pluginName].saveToFile){
         this.writeToFile(proxy, req, resp, 'swgt-GetGuildSiegeBaseDefenseUnitListPreset-'+new Date().getTime()+'.json');
       }
+      if (this.hasCacheMatch(proxy, cache, resp)) return;
       this.uploadToWebService(proxy, config, req, resp);
     });
     proxy.on('GetGuildSiegeRankingInfo', (req, resp) => {
@@ -105,6 +117,7 @@ module.exports = {
       if(config.Config.Plugins[pluginName].saveToFile){
         this.writeToFile(proxy, req, resp, 'swgt-GetGuildSiegeRankingInfo-'+new Date().getTime()+'.json');
       }
+      if (this.hasCacheMatch(proxy, cache, resp)) return;
       this.uploadToWebService(proxy, config, req, resp);
     });
 
@@ -115,6 +128,7 @@ module.exports = {
       if(config.Config.Plugins[pluginName].saveToFile){
         this.writeToFile(proxy, req, resp, 'swgt-GetGuildMazeContributeList-'+new Date().getTime()+'.json');
       }
+      if (this.hasCacheMatch(proxy, cache, resp)) return;
       this.uploadToWebService(proxy, config, req, resp);
     });
     proxy.on('GetGuildMazeMemberInfoList', (req, resp) => {
@@ -122,9 +136,28 @@ module.exports = {
       if(config.Config.Plugins[pluginName].saveToFile){
         this.writeToFile(proxy, req, resp, 'swgt-GetGuildMazeMemberInfoList-'+new Date().getTime()+'.json');
       }
+      if (this.hasCacheMatch(proxy, cache, resp)) return;
       this.uploadToWebService(proxy, config, req, resp);
     });
     */
+  },
+  hasCacheMatch(proxy, cache, resp) {
+    action = resp['command']
+    if (action == 'GetGuildSiegeBattleLog') {action = action + '_' + resp['log_type']};
+    if ('ts_val' in resp) {delete resp['ts_val']};
+    if ('tvalue' in resp) {delete resp['tvalue']};
+    if ('tvaluelocal' in resp) {delete resp['tvaluelocal']};
+    //proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: "Response: " + JSON.stringify(resp) });
+    if (!(action in cache)) {
+      proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: "Not in cache:  " + action });
+    } else if (cache[action] == JSON.stringify(resp)) {
+      proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: "Matched cache:  " + action });
+      return true;
+    } else {
+      proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: "No match cache:  " + action });
+    };
+    cache[action] = JSON.stringify(resp);
+    return false;
   },
   uploadToWebService(proxy, config, req, resp) {
     if (!config.Config.Plugins[pluginName].apiKey) {
