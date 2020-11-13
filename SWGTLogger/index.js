@@ -26,144 +26,113 @@ module.exports = {
 
     //Character JSON and Guild Member List
     proxy.on('HubUserLogin', (req, resp) => {
-      if (!config.Config.Plugins[pluginName].enabled) return;
       if (!config.Config.Plugins[pluginName].sendCharacterJSON) return;
-      if (this.hasAPISettings(config)) return;
-      if(config.Config.Plugins[pluginName].saveToFile){
-        this.writeToFile(proxy, req, resp, 'swgt-HubUserLogin-'+new Date().getTime()+'.json');
-      }
-      if (this.hasCacheMatch(proxy, cache, resp)) return;
+      
+      this.writeToFile(proxy, req, resp);
+      if (this.hasCacheMatch(proxy, config, req, resp, cache)) return;
       this.uploadToWebService(proxy, config, req, resp);
     });
 
     //Guild Info
     proxy.on('getGuildAttendInfo', (req, resp) => {
-      if (!config.Config.Plugins[pluginName].enabled) return;
-      if(config.Config.Plugins[pluginName].saveToFile){
-        this.writeToFile(proxy, req, resp, 'swgt-getGuildAttendInfo-'+new Date().getTime()+'.json');
-      }
-      if (this.hasCacheMatch(proxy, cache, resp)) return;
+      this.writeToFile(proxy, req, resp);
+      if (this.hasCacheMatch(proxy, config, req, resp, cache)) return;
       this.uploadToWebService(proxy, config, req, resp);
     });
     proxy.on('GetGuildInfo', (req, resp) => {
-      if (!config.Config.Plugins[pluginName].enabled) return;
-      if(config.Config.Plugins[pluginName].saveToFile){
-        this.writeToFile(proxy, req, resp, 'swgt-GetGuildInfo-'+new Date().getTime()+'.json');
-      }
-      if (this.hasCacheMatch(proxy, cache, resp)) return;
+      this.writeToFile(proxy, req, resp);
+      if (this.hasCacheMatch(proxy, config, req, resp, cache)) return;
       this.uploadToWebService(proxy, config, req, resp);
     });
 
     //Guild War Hooks
     proxy.on('GetGuildWarBattleLogByGuildId', (req, resp) => {
-      if (!config.Config.Plugins[pluginName].enabled) return;
-      if(config.Config.Plugins[pluginName].saveToFile){
-        this.writeToFile(proxy, req, resp, 'swgt-GetGuildWarBattleLogByGuildId-'+new Date().getTime()+'.json');
-      }
-      if (this.hasCacheMatch(proxy, cache, resp)) return;
+      this.writeToFile(proxy, req, resp);
+      if (this.hasCacheMatch(proxy, config, req, resp, cache)) return;
       this.uploadToWebService(proxy, config, req, resp);
     });
     proxy.on('GetGuildWarBattleLogByWizardId', (req, resp) => {
-      if (!config.Config.Plugins[pluginName].enabled) return;
-      if(config.Config.Plugins[pluginName].saveToFile){
-        this.writeToFile(proxy, req, resp, 'swgt-GetGuildWarBattleLogByWizardId-'+new Date().getTime()+'.json');
-      }
-      if (this.hasCacheMatch(proxy, cache, resp)) return;
+      this.writeToFile(proxy, req, resp);
+      if (this.hasCacheMatch(proxy, config, req, resp, cache)) return;
       this.uploadToWebService(proxy, config, req, resp);
     });
     proxy.on('GetGuildWarMatchLog', (req, resp) => {
-      if (!config.Config.Plugins[pluginName].enabled) return;
-      if(config.Config.Plugins[pluginName].saveToFile){
-        this.writeToFile(proxy, req, resp, 'swgt-GetGuildWarMatchLog-'+new Date().getTime()+'.json');
-      }
-      if (this.hasCacheMatch(proxy, cache, resp)) return;
+      this.writeToFile(proxy, req, resp);
+      if (this.hasCacheMatch(proxy, config, req, resp, cache)) return;
       this.uploadToWebService(proxy, config, req, resp);
     });
     proxy.on('GetGuildWarRanking', (req, resp) => {
-      if (!config.Config.Plugins[pluginName].enabled) return;
-      if(config.Config.Plugins[pluginName].saveToFile){
-        this.writeToFile(proxy, req, resp, 'swgt-GetGuildWarRanking-'+new Date().getTime()+'.json');
-      }
-      if (this.hasCacheMatch(proxy, cache, resp)) return;
+      this.writeToFile(proxy, req, resp);
+      if (this.hasCacheMatch(proxy, config, req, resp, cache)) return;
       this.uploadToWebService(proxy, config, req, resp);
     });
 
     //Siege
     proxy.on('GetGuildSiegeBattleLogByWizardId', (req, resp) => {
-      if (!config.Config.Plugins[pluginName].enabled) return;
-      if(config.Config.Plugins[pluginName].saveToFile){
-        this.writeToFile(proxy, req, resp, 'swgt-GetGuildSiegeBattleLogByWizardId-'+new Date().getTime()+'.json');
-      }
-      if (this.hasCacheMatch(proxy, cache, resp)) return;
+      this.writeToFile(proxy, req, resp);
+      if (this.hasCacheMatch(proxy, config, req, resp, cache)) return;
       this.uploadToWebService(proxy, config, req, resp);
     });
     proxy.on('GetGuildSiegeBattleLog', (req, resp) => {
-      if (!config.Config.Plugins[pluginName].enabled) return;
-      if(config.Config.Plugins[pluginName].saveToFile){
-        this.writeToFile(proxy, req, resp, 'swgt-GetGuildSiegeBattleLog-'+new Date().getTime()+'.json');
-      }
-      if (this.hasCacheMatch(proxy, cache, resp)) return;
+      this.writeToFile(proxy, req, resp);
+      if (this.hasCacheMatch(proxy, config, req, resp, cache)) return;
       this.uploadToWebService(proxy, config, req, resp);
     });
     proxy.on('GetGuildSiegeMatchupInfo', (req, resp) => {
-      if (!config.Config.Plugins[pluginName].enabled) return;
-      if(config.Config.Plugins[pluginName].saveToFile){
-        this.writeToFile(proxy, req, resp, 'swgt-GetGuildSiegeMatchupInfo-'+new Date().getTime()+'.json');
-      }
-      if (this.hasCacheMatch(proxy, cache, resp)) return;
+      this.writeToFile(proxy, req, resp);
+      if (this.hasCacheMatch(proxy, config, req, resp, cache)) return;
       this.uploadToWebService(proxy, config, req, resp);
     });
     proxy.on('GetGuildSiegeBaseDefenseUnitList', (req, resp) => {
-      if (!config.Config.Plugins[pluginName].enabled) return;
-      if(config.Config.Plugins[pluginName].saveToFile){
-        this.writeToFile(proxy, req, resp, 'swgt-GetGuildSiegeBaseDefenseUnitList-'+new Date().getTime()+'.json');
-      }
-      if (this.hasCacheMatch(proxy, cache, resp)) return;
+      this.writeToFile(proxy, req, resp);
+      if (this.hasCacheMatch(proxy, config, req, resp, cache)) return;
       this.uploadToWebService(proxy, config, req, resp);
     });
     proxy.on('GetGuildSiegeBaseDefenseUnitListPreset', (req, resp) => {
-      if (!config.Config.Plugins[pluginName].enabled) return;
-      if(config.Config.Plugins[pluginName].saveToFile){
-        this.writeToFile(proxy, req, resp, 'swgt-GetGuildSiegeBaseDefenseUnitListPreset-'+new Date().getTime()+'.json');
-      }
-      if (this.hasCacheMatch(proxy, cache, resp)) return;
+      this.writeToFile(proxy, req, resp);
+      if (this.hasCacheMatch(proxy, config, req, resp, cache)) return;
       this.uploadToWebService(proxy, config, req, resp);
     });
     proxy.on('GetGuildSiegeRankingInfo', (req, resp) => {
-      if (!config.Config.Plugins[pluginName].enabled) return;
-      if(config.Config.Plugins[pluginName].saveToFile){
-        this.writeToFile(proxy, req, resp, 'swgt-GetGuildSiegeRankingInfo-'+new Date().getTime()+'.json');
-      }
-      if (this.hasCacheMatch(proxy, cache, resp)) return;
+      this.writeToFile(proxy, req, resp);
+      if (this.hasCacheMatch(proxy, config, req, resp, cache)) return;
       this.uploadToWebService(proxy, config, req, resp);
     });
 
     /*
     //Lab
     proxy.on('GetGuildMazeContributeList', (req, resp) => {
-      if (!config.Config.Plugins[pluginName].enabled) return;
-      if(config.Config.Plugins[pluginName].saveToFile){
-        this.writeToFile(proxy, req, resp, 'swgt-GetGuildMazeContributeList-'+new Date().getTime()+'.json');
-      }
-      if (this.hasCacheMatch(proxy, cache, resp)) return;
+      this.writeToFile(proxy, req, resp);
+      if (this.hasCacheMatch(proxy, config, req, resp, cache)) return;
       this.uploadToWebService(proxy, config, req, resp);
     });
     proxy.on('GetGuildMazeMemberInfoList', (req, resp) => {
-      if (!config.Config.Plugins[pluginName].enabled) return;
-      if(config.Config.Plugins[pluginName].saveToFile){
-        this.writeToFile(proxy, req, resp, 'swgt-GetGuildMazeMemberInfoList-'+new Date().getTime()+'.json');
-      }
-      if (this.hasCacheMatch(proxy, cache, resp)) return;
+      this.writeToFile(proxy, req, resp);
+      if (this.hasCacheMatch(proxy, config, req, resp, cache)) return;
       this.uploadToWebService(proxy, config, req, resp);
     });
     */
   },
   hasAPISettings(config){
-    if (!config.Config.Plugins[pluginName].apiKey) return false;
-    if (!config.Config.Plugins[pluginName].siteURL) return false;
+    if (!config.Config.Plugins[pluginName].enabled) return false;
+
+    if (!config.Config.Plugins[pluginName].apiKey){
+      proxy.log({ type: 'error', source: 'plugin', name: this.pluginName, message: 'Missing API key.' });
+      return false;
+    } 
+    if (!config.Config.Plugins[pluginName].siteURL){
+      proxy.log({ type: 'error', source: 'plugin', name: this.pluginName, message: 'Missing Site URL.' });
+      return false;
+    };
+    if(!config.Config.Plugins[pluginName].siteURL.includes("swgt.io")){
+      proxy.log({ type: 'error', source: 'plugin', name: this.pluginName, message: 'Invalid Site URL.' });
+      return false;
+    }
     return true;
   },
-  hasCacheMatch(proxy, cache, resp) {
+  hasCacheMatch(proxy, config, req, resp, cache) {
+    if (!this.hasAPISettings(config)) return;
+
     action = resp['command']
     if ('log_type' in resp) {action += '_' + resp['log_type']};
 
@@ -183,21 +152,13 @@ module.exports = {
     return false;
   },
   uploadToWebService(proxy, config, req, resp) {
-    if (!config.Config.Plugins[pluginName].apiKey) {
-      proxy.log({ type: 'error', source: 'plugin', name: this.pluginName, message: 'Unable to upload due to missing API key. Please go into settings and enter an API key for the SWGTLogger.' });
-      return;
-    }
+    if(!this.hasAPISettings(config)) return;
     const { command } = req;
-
-    var thissiteURL = "https://swgt.io";
-    if(config.Config.Plugins[pluginName].siteURL != "" && config.Config.Plugins[pluginName].siteURL.includes("swgt.io"))
-      thissiteURL = config.Config.Plugins[pluginName].siteURL;
 
     let options = {
       method: 'post',
-      uri: thissiteURL+'/api/v1?apiKey='+config.Config.Plugins[pluginName].apiKey,
+      uri: config.Config.Plugins[pluginName].siteURL+'/api/v1?apiKey='+config.Config.Plugins[pluginName].apiKey,
       json: true,
-      //body: JSON.stringify(resp, true, 2)
       body: resp
     };
 
@@ -219,7 +180,10 @@ module.exports = {
       }
     });
   },
-  writeToFile(proxy, req, resp, filename) {
+  writeToFile(proxy, req, resp) {
+    if(!config.Config.Plugins[pluginName].enabled) return;
+    if(!config.Config.Plugins[pluginName].saveToFile) return;
+    let filename = 'swgt-'+resp['command']+'-'+new Date().getTime()+'.json';
     let outFile = fs.createWriteStream(path.join(config.Config.App.filesPath, filename), {
       flags: 'w',
       autoClose: true
