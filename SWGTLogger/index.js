@@ -87,11 +87,11 @@ module.exports = {
   hasCacheMatch(proxy, config, req, resp, cache) {
     if (!this.hasAPISettings(config)) return false;
 
-    action = resp['command']
+    var action = resp['command'];
     if ('log_type' in resp) {action += '_' + resp['log_type']};
 
     if ('ts_val' in resp) {delete resp['ts_val']};
-    if(action == 'HubUserLogin'){
+    if(resp['command'] == 'HubUserLogin'){
       var requiredHubUserLoginElements = [
         'command',
         'wizard_info',
@@ -110,10 +110,10 @@ module.exports = {
       }
     }
     if(
-        action != 'HubUserLogin' && 
-        action != 'VisitFriend' && 
-        action != 'GetGuildWarRanking' && 
-        action != 'GetGuildSiegeRankingInfo'
+      resp['command'] != 'HubUserLogin' && 
+      resp['command'] != 'VisitFriend' && 
+      resp['command'] != 'GetGuildWarRanking' && 
+      resp['command'] != 'GetGuildSiegeRankingInfo'
       ){
       if ('tvalue' in resp) {delete resp['tvalue']};
     }
