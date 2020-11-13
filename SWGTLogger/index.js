@@ -7,18 +7,35 @@ module.exports = {
   defaultConfig: {
     enabled: true,
     saveToFile: false,
+    sendCharacterJSON: true,
     apiKey: '',
-    siteURL: 'https://swgt.io'
+    apiURL: ''
   },
   defaultConfigDetails: {
     saveToFile: {label: 'Save to file as well?'},
+    sendCharacterJSON: {label: 'Send Character JSON?'},
     apiKey: { label: 'SWGT API key (On your SWGT profile page)', type: 'input' },
-    siteURL: { label: 'API URL (default https://swgt.io)', type: 'input' }
+    apiURL: { label: 'SWGT API URL  (On your SWGT profile page)', type: 'input' }
   },
   pluginName,
-  pluginDescription: 'Automatically upload guild battle information to SWGT.',
+  pluginDescription: 'For SWGT Patreon subscribers to automatically '+
+    'upload various Summoners War data. Enable Character JSON to automatically update '+
+    'your guild\'s members and your player\'s units/runes/artifacts',
   init(proxy, config) {
     cache={};
+
+    //Character JSON and Guild Member List
+    proxy.on('HubUserLogin', (req, resp) => {
+      if (!config.Config.Plugins[pluginName].enabled) return;
+      if (!config.Config.Plugins[pluginName].sendCharacterJSON) return;
+      if (this.hasAPISettings(config)) return;
+      if(config.Config.Plugins[pluginName].saveToFile){
+        this.writeToFile(proxy, req, resp, 'swgt-HubUserLogin-'+new Date().getTime()+'.json');
+      }
+      if (this.hasCacheMatch(proxy, cache, resp)) return;
+      this.uploadToWebService(proxy, config, req, resp);
+    });
+
     //Guild Info
     proxy.on('getGuildAttendInfo', (req, resp) => {
       if (!config.Config.Plugins[pluginName].enabled) return;
@@ -141,9 +158,15 @@ module.exports = {
     });
     */
   },
+  hasAPISettings(config){
+    if (!config.Config.Plugins[pluginName].apiKey) return false;
+    if (!config.Config.Plugins[pluginName].apiURL) return false;
+    return true;
+  },
   hasCacheMatch(proxy, cache, resp) {
     action = resp['command']
-    if (action == 'GetGuildSiegeBattleLog') {action = action + '_' + resp['log_type']};
+    if ('log_type' in resp) {action += '_' + resp['log_type']};
+
     if ('ts_val' in resp) {delete resp['ts_val']};
     if ('tvalue' in resp) {delete resp['tvalue']};
     if ('tvaluelocal' in resp) {delete resp['tvaluelocal']};
@@ -166,13 +189,13 @@ module.exports = {
     }
     const { command } = req;
 
-    var thisSiteURL = "https://swgt.io";
-    if(config.Config.Plugins[pluginName].siteURL != "" && config.Config.Plugins[pluginName].siteURL.includes("swgt.io"))
-      thisSiteURL = config.Config.Plugins[pluginName].siteURL;
-    
+    var thisapiURL = "https://swgt.io";
+    if(config.Config.Plugins[pluginName].apiURL != "" && config.Config.Plugins[pluginName].apiURL.includes("swgt.io"))
+      thisapiURL = config.Config.Plugins[pluginName].apiURL;
+
     let options = {
       method: 'post',
-      uri: thisSiteURL+'/api/v1?apiKey='+config.Config.Plugins[pluginName].apiKey,
+      uri: thisapiURL+'/api/v1?apiKey='+config.Config.Plugins[pluginName].apiKey,
       json: true,
       //body: JSON.stringify(resp, true, 2)
       body: resp
