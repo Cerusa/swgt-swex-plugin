@@ -137,7 +137,14 @@ module.exports = {
     if ('log_type' in resp) {action += '_' + resp['log_type']};
 
     if ('ts_val' in resp) {delete resp['ts_val']};
-    if ('tvalue' in resp) {delete resp['tvalue']};
+    if(
+        action != 'HubUserLogin' && 
+        action != 'VisitFriend' && 
+        action != 'GetGuildWarRanking' && 
+        action != 'GetGuildSiegeRankingInfo'
+      ){
+      if ('tvalue' in resp) {delete resp['tvalue']};
+    }
     if ('tvaluelocal' in resp) {delete resp['tvaluelocal']};
     //proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: "Response: " + JSON.stringify(resp) });
     if (!(action in cache)) {
