@@ -93,12 +93,21 @@ module.exports = {
       ];
 
       //Purge all unused variables
-      for (var key in resp) {
-        if (resp.hasOwnProperty(key)){
-            if(!requiredHubUserLoginElements.includes(key)){delete resp[key]};
+      pruned = {}
+      for (var i in requiredHubUserLoginElements) {
+        //Deep copy so we can modify
+        pruned[requiredHubUserLoginElements[i]] = JSON.parse(JSON.stringify(resp[requiredHubUserLoginElements[i]]))
+      }
+      //Move runes from monsters to inventory (and detach from monster id)
+      for (var mon in pruned.unit_list) {
+        for (var rune in pruned.unit_list[mon].runes) {
+          pruned.unit_list[mon].runes[rune].occupied_id = 0;
+          pruned.runes.push(pruned.unit_list[mon].runes[rune])
+          delete pruned.unit_list[mon].runes[rune];
         }
       }
     }
+    resp = pruned
 
     this.writeToFile(proxy, req, resp);
     if (this.hasCacheMatch(proxy, config, req, resp, cache)) return;
