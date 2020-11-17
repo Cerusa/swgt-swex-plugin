@@ -106,8 +106,8 @@ module.exports = {
           delete pruned.unit_list[mon].runes[rune];
         }
       }
+      resp = pruned
     }
-    resp = pruned
 
     this.writeToFile(proxy, req, resp);
     if (this.hasCacheMatch(proxy, config, req, resp, cache)) return;
