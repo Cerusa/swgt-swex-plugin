@@ -8,12 +8,14 @@ module.exports = {
     enabled: true,
     saveToFile: false,
     sendCharacterJSON: true,
+    importMonsters: true,
     apiKey: '',
     siteURL: ''
   },
   defaultConfigDetails: {
     saveToFile: {label: 'Save to file as well?'},
     sendCharacterJSON: {label: 'Send Character JSON?'},
+    importMonsters: {label: 'Import Monsters?'},
     apiKey: { label: 'SWGT API key (On your SWGT profile page)', type: 'input' },
     siteURL: { label: 'SWGT API URL  (On your SWGT profile page)', type: 'input' }
   },
@@ -106,6 +108,10 @@ module.exports = {
           delete pruned.unit_list[mon].runes[rune];
         }
       }
+      //If import monsters is false, remove all monsters
+      if(!config.Config.Plugins[pluginName].importMonsters)
+        delete pruned['unit_list'];
+
       resp = pruned
     }
 
