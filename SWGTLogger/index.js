@@ -100,12 +100,17 @@ module.exports = {
         //Deep copy so we can modify
         pruned[requiredHubUserLoginElements[i]] = JSON.parse(JSON.stringify(resp[requiredHubUserLoginElements[i]]))
       }
-      //Move runes from monsters to inventory (and detach from monster id)
+      //Move runes/artifact from monsters to inventory (and detach from monster id)
       for (var mon in pruned.unit_list) {
         for (var rune in pruned.unit_list[mon].runes) {
           pruned.unit_list[mon].runes[rune].occupied_id = 0;
           pruned.runes.push(pruned.unit_list[mon].runes[rune])
           delete pruned.unit_list[mon].runes[rune];
+        }
+        for (var artifact in pruned.unit_list[mon].artifacts) {
+          pruned.unit_list[mon].artifacts[artifact].occupied_id = 0;
+          pruned.artifacts.push(pruned.unit_list[mon].artifacts[artifact])
+          delete pruned.unit_list[mon].artifacts[artifact];
         }
       }
       //If import monsters is false, remove all monsters
