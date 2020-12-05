@@ -44,6 +44,7 @@ module.exports = {
       'GetGuildSiegeBattleLogByWizardId',
       'GetGuildSiegeBattleLog',
       'GetGuildSiegeMatchupInfo',
+      'GetGuildSiegeMatchupInfoForFinished',
       'GetGuildSiegeBaseDefenseUnitList',
       'GetGuildSiegeBaseDefenseUnitListPreset',
       'GetGuildSiegeRankingInfo'
