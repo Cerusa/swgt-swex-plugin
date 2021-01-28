@@ -19,7 +19,7 @@ module.exports = {
     saveToFile: { label: 'Save to file as well?' },
     sendCharacterJSON: { label: 'Send Character JSON?' },
     importMonsters: { label: 'Import monsters?' },
-    uploadBattles: { label: '3MDC upload defenese and counter as you battle?' },
+    uploadBattles: { label: '3MDC upload defense and counter as you battle?' },
     apiKey: { label: 'SWGT API key (On your SWGT profile page)', type: 'input' },
     siteURL: { label: 'SWGT API URL  (On your SWGT profile page)', type: 'input' }
   },
