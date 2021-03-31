@@ -55,11 +55,13 @@ module.exports = {
       'GetGuildSiegeMatchupInfoForFinished',
       'GetGuildSiegeBaseDefenseUnitList',
       'GetGuildSiegeBaseDefenseUnitListPreset',
-      'GetGuildSiegeRankingInfo'
+      'GetGuildSiegeRankingInfo',
 
       //Labyrinth
-      //'GetGuildMazeContributeList',
-      //'GetGuildMazeMemberInfoList'
+      'GetGuildMazeStatusInfo',
+      'GetGuildMazeContributeList',
+	  'GetGuildMazeBattleLogByWizard',
+	  'GetGuildMazeBattleLogByTile'
     ];
 
     var listenTo3MDCCommands = [
@@ -196,6 +198,7 @@ module.exports = {
           if (wizardBattles[k].wizard_id == req['wizard_id']) {
             //update rating id
             wizardBattles[k].guild_rating_id = resp['guildwar_match_info']['guild_rating_id'];
+			wizardBattles[k].guild_id = resp['guildwar_match_info']['guild_id'];
             wizardBattles[k].sendBattles = [];
             wizardFound = true;
           }
@@ -203,6 +206,7 @@ module.exports = {
         if (!wizardFound) {
           wizardInfo.wizard_id = req['wizard_id'];
           wizardInfo.guild_rating_id = resp['guildwar_match_info']['guild_rating_id'];
+		  wizardInfo.guild_id = resp['guildwar_match_info']['guild_id'];
           wizardInfo.sendBattles = [];
           wizardBattles.push(wizardInfo);
         }
@@ -218,6 +222,11 @@ module.exports = {
         for (var k = wizardBattles.length - 1; k >= 0; k--) {
           if (wizardBattles[k].wizard_id == req['wizard_id']) {
             wizardBattles[k].siege_rating_id = resp['match_info']['rating_id'];
+			for (var wizard in resp['wizard_info_list']){
+				if (resp['wizard_info_list'][wizard].wizard_id == req['wizard_id']){
+					wizardBattles[k].guild_id = resp['wizard_info_list'][wizard].guild_id;
+				}		
+			}
             wizardBattles[k].sendBattles = [];
             wizardFound = true;
           }
@@ -225,6 +234,11 @@ module.exports = {
         if (!wizardFound) {
           wizardInfo.wizard_id = req['wizard_id'];
           wizardInfo.siege_rating_id = resp['match_info']['rating_id'];
+		  for (var wizard in resp['wizard_info_list']){
+				if (resp['wizard_info_list'][wizard].wizard_id == req['wizard_id']){
+					wizardInfo.guild_id = resp['wizard_info_list'][wizard].guild_id;
+				}		
+			}
           wizardInfo.sendBattles = [];
           wizardBattles.push(wizardInfo);
         }
@@ -263,6 +277,7 @@ module.exports = {
             if (wizardBattles[k].wizard_id == req['wizard_id']) {
               //store battle in array
               battle.battleRank = wizardBattles[k].guild_rating_id;
+			  battle.guild_id = wizardBattles[k].guild_id;
               wizardBattles[k].sendBattles.push(battle);
             }
           }
@@ -300,6 +315,7 @@ module.exports = {
           if (wizardBattles[k].wizard_id == req['wizard_id']) {
             //store battle in array
             battle.battleRank = wizardBattles[k].siege_rating_id;
+			battle.guild_id = wizardBattles[k].guild_id;
             wizardBattles[k].sendBattles.push(battle);
           }
         }
@@ -433,6 +449,7 @@ module.exports = {
 		sendDecks.deck_units = tempDefenseDeckInfo;
 		sendResp = sendDecks;
 		this.writeToFile(proxy, req, sendResp,'SWGT2-');
+		this.uploadToWebService(proxy, config, req, sendResp,'SWGT');
       } catch (e) {
         proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `${resp['command']}-${e.message}` });
       }
@@ -475,7 +492,7 @@ module.exports = {
 		sendDecks.deck_log_history = deckLogLink;
 		sendResp = sendDecks;
 		this.writeToFile(proxy, req, sendResp,'SWGT3-');
-		
+		this.uploadToWebService(proxy, config, req, sendResp,'SWGT');
 		
       } catch (e) {
         proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `${resp['command']}-${e.message}` });
