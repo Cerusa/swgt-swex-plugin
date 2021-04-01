@@ -53,14 +53,15 @@ module.exports = {
       'GetGuildSiegeMatchupInfoForFinished',
       'GetGuildSiegeBaseDefenseUnitList',
       'GetGuildSiegeBaseDefenseUnitListPreset',
-      'GetGuildSiegeRankingInfo',
-
+      'GetGuildSiegeRankingInfo'
+    ];
+    /*
       //Labyrinth
       'GetGuildMazeStatusInfo',
       'GetGuildMazeContributeList',
 	    'GetGuildMazeBattleLogByWizard',
 	    'GetGuildMazeBattleLogByTile'
-    ];
+    */
 
     var listenTo3MDCCommands = [
       //Guild War-
