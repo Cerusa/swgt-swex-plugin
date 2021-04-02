@@ -2,6 +2,7 @@ const request = require('request');
 const fs = require('fs');
 const path = require('path');
 const pluginName = 'SWGTLogger';
+const pluginVersion = '2021-04-01_1405';
 var wizardBattles = [];
 var sendBattles = [];
 var tempDefenseDeckInfo = [];
@@ -113,8 +114,12 @@ module.exports = {
         });
       }
     }
+	
+	//Confirm SWGT plugin version and Site API Settings
+	this.checkVersion(proxy);
+	this.checkSiteAPI(proxy, config);
   },
-  hasAPISettings(config) {
+  hasAPISettings(config, proxy) {
     if (!config.Config.Plugins[pluginName].enabled) return false;
 
     if (!config.Config.Plugins[pluginName].apiKey) {
@@ -484,7 +489,7 @@ module.exports = {
     }
   },
   hasCacheMatch(proxy, config, req, resp, cache) {
-    if (!this.hasAPISettings(config)) return false;
+    if (!this.hasAPISettings(config, proxy)) return false;
 
     var action = resp['command'];
     if ('log_type' in resp) { action += '_' + resp['log_type'] };
@@ -513,7 +518,7 @@ module.exports = {
     return false;
   },  
   uploadToWebService(proxy, config, req, resp,endpointType) {
-    if (!this.hasAPISettings(config)) return;
+    if (!this.hasAPISettings(config, proxy)) return;
     const { command } = req;
 
     var endpoint = "/api/v1";
@@ -545,6 +550,83 @@ module.exports = {
       }
     });
   },
+  checkVersion(proxy){
+	  //check version number
+	  var endpoint = "https://swgt.io/api/v1";
+	  let options = {
+      method: 'get',
+      uri: endpoint
+    };
+	request(options, (error, response) => {
+      if (error) {
+        proxy.log({ type: 'error', source: 'plugin', name: this.pluginName, message: `Error: ${error.message}` });
+        return;
+      }
+	//Check current version of SWGT Plugin as listed on site.
+      if (response.statusCode === 200) {
+		versionResponse = JSON.parse(response.body);
+		if (versionResponse.message == pluginVersion) {
+			proxy.log({type:'success',source:'plugin',name:this.pluginName,
+			message:`Initializing version ${pluginName}_${pluginVersion}. You have the latest version!`});
+		} else {
+			proxy.log({type:'warning',source:'plugin',name:this.pluginName,
+			message:`Initializing version ${pluginName}_${pluginVersion}. There is a new version available on GitHub. Please visit https://github.com/Cerusa/swgt-swex-plugin/releases/latest and download the latest version.`});
+		};
+		
+      } else {
+        proxy.log({
+          type: 'error',
+          source: 'plugin',
+          name: this.pluginName,
+          message: `Server responded with code: ${response.statusCode} = ${response.body}`
+        });
+      }
+    });
+  },
+  checkSiteAPI(proxy, config){
+	//check site api configuration settings
+	if (!this.hasAPISettings(config, proxy)) {
+		//proxy.log({ type: 'error', source: 'plugin', name: this.pluginName, message: `API Settings not yet configured.` });
+		return;
+	};
+	resp = {};
+	resp.command = "checkAPIKey";
+    var endpoint = "/api/v1";
+
+	let options = {
+      method: 'post',
+      uri: config.Config.Plugins[pluginName].siteURL + endpoint+'?apiKey=' + config.Config.Plugins[pluginName].apiKey,
+      json: true,
+      body: resp
+    };
+
+    request(options, (error, response) => {
+      if (error) {
+        proxy.log({ type: 'error', source: 'plugin', name: this.pluginName, message: `Failed to connect to ${config.Config.Plugins[pluginName].siteURL}` });
+        return;
+      }
+
+      if (response.statusCode === 200) {
+        proxy.log({ type: 'success', source: 'plugin', name: this.pluginName, message: `Successfully connected to ${config.Config.Plugins[pluginName].siteURL}` });
+      } else if ( response.statusCode === 401) {
+		proxy.log({
+          type: 'error',
+          source: 'plugin',
+          name: this.pluginName,
+          message: `Failed to connect to ${config.Config.Plugins[pluginName].siteURL}: Invalid API Key.`
+        });
+
+	  } else  {
+        proxy.log({
+          type: 'error',
+          source: 'plugin',
+          name: this.pluginName,
+          message: `Failed to connect to ${config.Config.Plugins[pluginName].siteURL}. ${response.body}`
+        });
+      }
+    });
+  },
+  
   writeToFile(proxy, req, resp, prefix) {
     if (!config.Config.Plugins[pluginName].enabled) return;
     if (!config.Config.Plugins[pluginName].saveToFile) return;
