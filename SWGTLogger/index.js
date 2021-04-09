@@ -434,6 +434,7 @@ module.exports = {
         sendDecks.deck_units = tempDefenseDeckInfo;
         sendResp = sendDecks;
         this.writeToFile(proxy, req, sendResp,'SWGT2-');
+		if (this.hasCacheMatch(proxy, config, req, sendResp, cache)) return;
         this.uploadToWebService(proxy, config, req, sendResp,'SWGT');
       } catch (e) {
         proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `${resp['command']}-${e.message}` });
@@ -476,6 +477,7 @@ module.exports = {
         sendDecks.deck_log_history = deckLogLink;
         sendResp = sendDecks;
         this.writeToFile(proxy, req, sendResp,'SWGT3-');
+		if (this.hasCacheMatch(proxy, config, req, sendResp, cache)) return;
         this.uploadToWebService(proxy, config, req, sendResp,'SWGT');
       } catch (e) {
         proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `${resp['command']}-${e.message}` });
@@ -487,13 +489,16 @@ module.exports = {
 
     var action = resp['command'];
     if ('log_type' in resp) { action += '_' + resp['log_type'] };
-    if ('ts_val' in resp) { delete resp['ts_val'] };
+	if ('ts_val' in resp) { delete resp['ts_val'] };
 
     if (
       resp['command'] != 'HubUserLogin' &&
       resp['command'] != 'VisitFriend' &&
       resp['command'] != 'GetGuildWarRanking' &&
-      resp['command'] != 'GetGuildSiegeRankingInfo'
+      resp['command'] != 'GetGuildSiegeRankingInfo' &&
+	  resp['command'] != 'GetGuildMazeContributeList' &&
+	  resp['command'] != 'GetGuildMazeStatusInfo' &&
+	  resp['command'] != 'GetGuildMazeBattleLogByWizard' 
     ) {
       if ('tvalue' in resp) { delete resp['tvalue'] };
     }
