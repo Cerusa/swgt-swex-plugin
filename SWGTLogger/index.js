@@ -39,7 +39,6 @@ module.exports = {
 
       //Guild Info
       'getGuildAttendInfo',
-      //'GetGuildInfo',
 
       //Guild War
       'GetGuildWarBattleLogByGuildId',
@@ -54,15 +53,15 @@ module.exports = {
       'GetGuildSiegeMatchupInfoForFinished',
       'GetGuildSiegeBaseDefenseUnitList',
       'GetGuildSiegeBaseDefenseUnitListPreset',
-      'GetGuildSiegeRankingInfo'
-    ];
-    /*
+      'GetGuildSiegeRankingInfo',
+    
+    
       //Labyrinth
       'GetGuildMazeStatusInfo',
       'GetGuildMazeContributeList',
-	    'GetGuildMazeBattleLogByWizard',
-	    'GetGuildMazeBattleLogByTile'
-    */
+	  'GetGuildMazeBattleLogByWizard',
+	  'GetGuildMazeBattleLogByTile'
+    ];
 
     var listenTo3MDCCommands = [
       //Guild War-
@@ -80,10 +79,10 @@ module.exports = {
     //Siege Defense Units
     'GetGuildSiegeBaseDefenseUnitList',
     'GetGuildSiegeBaseDefenseUnitListPreset',
-	  'GetGuildSiegeDefenseDeckByWizardId',
+	'GetGuildSiegeDefenseDeckByWizardId',
 	  
-	  //Defense Log Link
-	  'GetGuildSiegeBattleLogByDeckId'
+	//Defense Log Link
+	'GetGuildSiegeBattleLogByDeckId'
   ];
 	
 	
@@ -106,7 +105,7 @@ module.exports = {
     }
 
 	  //Attach SWGT Siege Log History Data
-    if (config.Config.Plugins[pluginName].uploadBattles){
+    if (config.Config.Plugins[pluginName].enabled){
       for (var commandIndex in listenToSWGTHistoryCommands) {
         var command = listenToSWGTHistoryCommands[commandIndex];
         proxy.on(command, (req, resp) => {
@@ -383,12 +382,7 @@ module.exports = {
   },
   
   processSWGTHistoryRequest(command, proxy, config, req, resp, cache) {
-	  if( resp['command'] == 'GetGuildInfo'){
-		  req = JSON.parse(defenseListStart);
-		  resp = JSON.parse(defenseList);
-		  reqDeckLog = JSON.parse(deckLogStart);
-		  respDeckLog = JSON.parse(deckLog);
-		}
+
 	  //Populate the Defense_Deck Table
 	  if (resp['command'] == 'GetGuildSiegeBaseDefenseUnitList' || resp['command']=='GetGuildSiegeBaseDefenseUnitListPreset' || resp['command']=='GetGuildSiegeDefenseDeckByWizardId') {
       //If wizard id and rating doesn't exist in wizardBattles[] then push to it
@@ -440,6 +434,7 @@ module.exports = {
         sendDecks.deck_units = tempDefenseDeckInfo;
         sendResp = sendDecks;
         this.writeToFile(proxy, req, sendResp,'SWGT2-');
+		if (this.hasCacheMatch(proxy, config, req, sendResp, cache)) return;
         this.uploadToWebService(proxy, config, req, sendResp,'SWGT');
       } catch (e) {
         proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `${resp['command']}-${e.message}` });
@@ -482,6 +477,7 @@ module.exports = {
         sendDecks.deck_log_history = deckLogLink;
         sendResp = sendDecks;
         this.writeToFile(proxy, req, sendResp,'SWGT3-');
+		if (this.hasCacheMatch(proxy, config, req, sendResp, cache)) return;
         this.uploadToWebService(proxy, config, req, sendResp,'SWGT');
       } catch (e) {
         proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `${resp['command']}-${e.message}` });
@@ -493,13 +489,16 @@ module.exports = {
 
     var action = resp['command'];
     if ('log_type' in resp) { action += '_' + resp['log_type'] };
-    if ('ts_val' in resp) { delete resp['ts_val'] };
+	if ('ts_val' in resp) { delete resp['ts_val'] };
 
     if (
       resp['command'] != 'HubUserLogin' &&
       resp['command'] != 'VisitFriend' &&
       resp['command'] != 'GetGuildWarRanking' &&
-      resp['command'] != 'GetGuildSiegeRankingInfo'
+      resp['command'] != 'GetGuildSiegeRankingInfo' &&
+	  resp['command'] != 'GetGuildMazeContributeList' &&
+	  resp['command'] != 'GetGuildMazeStatusInfo' &&
+	  resp['command'] != 'GetGuildMazeBattleLogByWizard' 
     ) {
       if ('tvalue' in resp) { delete resp['tvalue'] };
     }
