@@ -2,7 +2,7 @@ const request = require('request');
 const fs = require('fs');
 const path = require('path');
 const pluginName = 'SWGTLogger';
-const pluginVersion = '2021-04-02_1621';
+const pluginVersion = '2021-04-26_1126';
 var wizardBattles = [];
 var sendBattles = [];
 var tempDefenseDeckInfo = [];
@@ -59,8 +59,8 @@ module.exports = {
       //Labyrinth
       'GetGuildMazeStatusInfo',
       'GetGuildMazeContributeList',
-	  'GetGuildMazeBattleLogByWizard',
-	  'GetGuildMazeBattleLogByTile'
+	    'GetGuildMazeBattleLogByWizard',
+	    'GetGuildMazeBattleLogByTile'
     ];
 
     var listenTo3MDCCommands = [
@@ -79,10 +79,10 @@ module.exports = {
     //Siege Defense Units
     'GetGuildSiegeBaseDefenseUnitList',
     'GetGuildSiegeBaseDefenseUnitListPreset',
-	'GetGuildSiegeDefenseDeckByWizardId',
+	  'GetGuildSiegeDefenseDeckByWizardId',
 	  
-	//Defense Log Link
-	'GetGuildSiegeBattleLogByDeckId'
+	  //Defense Log Link
+	  'GetGuildSiegeBattleLogByDeckId'
   ];
 	
 	
@@ -114,9 +114,9 @@ module.exports = {
       }
     }
 	
-	//Confirm SWGT plugin version and Site API Settings
-	this.checkVersion(proxy);
-	this.checkSiteAPI(proxy, config);
+	  //Confirm SWGT plugin version and Site API Settings
+	  this.checkVersion(proxy);
+	  this.checkSiteAPI(proxy, config);
   },
   hasAPISettings(config, proxy) {
     if (!config.Config.Plugins[pluginName].enabled) return false;
@@ -382,7 +382,6 @@ module.exports = {
   },
   
   processSWGTHistoryRequest(command, proxy, config, req, resp, cache) {
-
 	  //Populate the Defense_Deck Table
 	  if (resp['command'] == 'GetGuildSiegeBaseDefenseUnitList' || resp['command']=='GetGuildSiegeBaseDefenseUnitListPreset' || resp['command']=='GetGuildSiegeDefenseDeckByWizardId') {
       //If wizard id and rating doesn't exist in wizardBattles[] then push to it
@@ -434,7 +433,7 @@ module.exports = {
         sendDecks.deck_units = tempDefenseDeckInfo;
         sendResp = sendDecks;
         this.writeToFile(proxy, req, sendResp,'SWGT2-');
-		if (this.hasCacheMatch(proxy, config, req, sendResp, cache)) return;
+		    if (this.hasCacheMatch(proxy, config, req, sendResp, cache)) return;
         this.uploadToWebService(proxy, config, req, sendResp,'SWGT');
       } catch (e) {
         proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `${resp['command']}-${e.message}` });
@@ -477,7 +476,7 @@ module.exports = {
         sendDecks.deck_log_history = deckLogLink;
         sendResp = sendDecks;
         this.writeToFile(proxy, req, sendResp,'SWGT3-');
-		if (this.hasCacheMatch(proxy, config, req, sendResp, cache)) return;
+		    if (this.hasCacheMatch(proxy, config, req, sendResp, cache)) return;
         this.uploadToWebService(proxy, config, req, sendResp,'SWGT');
       } catch (e) {
         proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `${resp['command']}-${e.message}` });
@@ -489,16 +488,16 @@ module.exports = {
 
     var action = resp['command'];
     if ('log_type' in resp) { action += '_' + resp['log_type'] };
-	if ('ts_val' in resp) { delete resp['ts_val'] };
+	  if ('ts_val' in resp) { delete resp['ts_val'] };
 
     if (
       resp['command'] != 'HubUserLogin' &&
       resp['command'] != 'VisitFriend' &&
       resp['command'] != 'GetGuildWarRanking' &&
       resp['command'] != 'GetGuildSiegeRankingInfo' &&
-	  resp['command'] != 'GetGuildMazeContributeList' &&
-	  resp['command'] != 'GetGuildMazeStatusInfo' &&
-	  resp['command'] != 'GetGuildMazeBattleLogByWizard' 
+	    resp['command'] != 'GetGuildMazeContributeList' &&
+	    resp['command'] != 'GetGuildMazeStatusInfo' &&
+	    resp['command'] != 'GetGuildMazeBattleLogByWizard' 
     ) {
       if ('tvalue' in resp) { delete resp['tvalue'] };
     }
@@ -556,22 +555,21 @@ module.exports = {
       method: 'get',
       uri: endpoint
     };
-	request(options, (error, response) => {
+	  request(options, (error, response) => {
       if (error) {
         proxy.log({ type: 'error', source: 'plugin', name: this.pluginName, message: `Error: ${error.message}` });
         return;
       }
-	//Check current version of SWGT Plugin as listed on site.
+	    //Check current version of SWGT Plugin as listed on site.
       if (response.statusCode === 200) {
-		versionResponse = JSON.parse(response.body);
-		if (versionResponse.message == pluginVersion) {
-			proxy.log({type:'success',source:'plugin',name:this.pluginName,
-			message:`Initializing version ${pluginName}_${pluginVersion}. You have the latest version!`});
-		} else {
-			proxy.log({type:'warning',source:'plugin',name:this.pluginName,
-			message:`Initializing version ${pluginName}_${pluginVersion}. There is a new version available on GitHub. Please visit https://github.com/Cerusa/swgt-swex-plugin/releases/latest and download the latest version.`});
-		};
-		
+		    versionResponse = JSON.parse(response.body);
+		    if (versionResponse.message == pluginVersion) {
+			    proxy.log({type:'success',source:'plugin',name:this.pluginName,
+			    message:`Initializing version ${pluginName}_${pluginVersion}. You have the latest version!`});
+		    } else {
+			    proxy.log({type:'warning',source:'plugin',name:this.pluginName,
+			    message:`Initializing version ${pluginName}_${pluginVersion}. There is a new version available on GitHub. Please visit https://github.com/Cerusa/swgt-swex-plugin/releases/latest and download the latest version.`});
+		    }
       } else {
         proxy.log({
           type: 'error',
@@ -583,16 +581,16 @@ module.exports = {
     });
   },
   checkSiteAPI(proxy, config){
-	//check site api configuration settings
-	if (!this.hasAPISettings(config, proxy)) {
-		//proxy.log({ type: 'error', source: 'plugin', name: this.pluginName, message: `API Settings not yet configured.` });
-		return;
-	};
-	resp = {};
-	resp.command = "checkAPIKey";
+	  //check site api configuration settings
+	  if (!this.hasAPISettings(config, proxy)) {
+		  //proxy.log({ type: 'error', source: 'plugin', name: this.pluginName, message: `API Settings not yet configured.` });
+		  return;
+	  }
+  	resp = {};
+	  resp.command = "checkAPIKey";
     var endpoint = "/api/v1";
 
-	let options = {
+	  let options = {
       method: 'post',
       uri: config.Config.Plugins[pluginName].siteURL + endpoint+'?apiKey=' + config.Config.Plugins[pluginName].apiKey,
       json: true,
@@ -608,14 +606,13 @@ module.exports = {
       if (response.statusCode === 200) {
         proxy.log({ type: 'success', source: 'plugin', name: this.pluginName, message: `Successfully connected to ${config.Config.Plugins[pluginName].siteURL}` });
       } else if ( response.statusCode === 401) {
-		proxy.log({
+		    proxy.log({
           type: 'error',
           source: 'plugin',
           name: this.pluginName,
           message: `Failed to connect to ${config.Config.Plugins[pluginName].siteURL}: Invalid API Key.`
         });
-
-	  } else  {
+	    } else  {
         proxy.log({
           type: 'error',
           source: 'plugin',
