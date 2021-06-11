@@ -6,6 +6,8 @@ const pluginVersion = '2021-04-26_1126';
 var wizardBattles = [];
 var sendBattles = [];
 var tempDefenseDeckInfo = [];
+var observerDefenseInfo = [];
+var observerAttackerList = [];
 
 module.exports = {
   defaultConfig: {
@@ -54,7 +56,7 @@ module.exports = {
       'GetGuildSiegeBaseDefenseUnitList',
       'GetGuildSiegeBaseDefenseUnitListPreset',
       'GetGuildSiegeRankingInfo',
-    
+	    
     
       //Labyrinth
       'GetGuildMazeStatusInfo',
@@ -72,7 +74,17 @@ module.exports = {
       //Siege
       'BattleGuildSiegeStart_v2',
       'BattleGuildSiegeResult',
-      'GetGuildSiegeMatchupInfo'
+      'GetGuildSiegeMatchupInfo',
+	  
+	  //TestingSiegeReplays
+	  'SetGuildSiegeBattleReplayData',
+	  
+	  //AttackViewerInstance
+	  'GetGuildSiegeBaseDefenseUnitList',
+	  'GetGuildSiegeAttackUnitListInBattle',
+	  'GetGuildSiegeBattleLog'
+	  
+	  
     ];
 	
 	var listenToSWGTHistoryCommands = [
@@ -194,7 +206,7 @@ module.exports = {
           if (wizardBattles[k].wizard_id == req['wizard_id']) {
             //update rating id
             wizardBattles[k].guild_rating_id = resp['guildwar_match_info']['guild_rating_id'];
-			      wizardBattles[k].guild_id = resp['guildwar_match_info']['guild_id'];
+			wizardBattles[k].guild_id = resp['guildwar_match_info']['guild_id'];
             wizardBattles[k].sendBattles = [];
             wizardFound = true;
           }
@@ -202,7 +214,7 @@ module.exports = {
         if (!wizardFound) {
           wizardInfo.wizard_id = req['wizard_id'];
           wizardInfo.guild_rating_id = resp['guildwar_match_info']['guild_rating_id'];
-		      wizardInfo.guild_id = resp['guildwar_match_info']['guild_id'];
+		  wizardInfo.guild_id = resp['guildwar_match_info']['guild_id'];
           wizardInfo.sendBattles = [];
           wizardBattles.push(wizardInfo);
         }
@@ -332,7 +344,7 @@ module.exports = {
               //remove battle from the sendBattlesList
               wizardBattles[wizard].sendBattles.splice(k, 1);
               //if result then add time and win/loss then send to webservice
-              if (sendResp.defense.units.length == 3 && sendResp.counter.units.length == 3 && sendResp.battleRank >= 4000) {
+              if (sendResp.defense.units.length == 3 && sendResp.counter.units.length > 0 && sendResp.battleRank >= 4000) {
                 this.writeToFile(proxy, req, sendResp,'3MDC-'+k);
 
                 this.uploadToWebService(proxy, config, req, sendResp,'3MDC');
@@ -354,7 +366,7 @@ module.exports = {
       try {//Handle out of order processing
         for (var wizard in wizardBattles) {
           for (var k = wizardBattles[wizard].sendBattles.length - 1; k >= 0; k--) {
-            //TODO: Handle multiple accounts with GW and Siege going at the same time. match battlekey and wizard. then do battles 1 and 2 and delete from the mon list.
+            //Handle multiple accounts with GW and Siege going at the same time. match battlekey and wizard. then do battles 1 and 2 and delete from the mon list.
             if (wizardBattles[wizard].sendBattles[k].battleKey == req['battle_key']) {
               wizardBattles[wizard].sendBattles[k].win_lose = req['win_lose'];
               wizardBattles[wizard].sendBattles[k].battleDateTime = resp.tvalue - j;
@@ -363,7 +375,7 @@ module.exports = {
               //remove battle from the sendBattlesList
               wizardBattles[wizard].sendBattles.splice(k, 1);
               //if 3 mons in offense and defense then send to webservice
-              if (sendResp.defense.units.length == 3 && sendResp.counter.units.length == 3 && sendResp.battleRank >= 4000) {
+              if (sendResp.defense.units.length == 3 && sendResp.counter.units.length > 0 && sendResp.battleRank >= 4000) {
                 this.writeToFile(proxy, req, sendResp,'3MDC-'+k);
 
                 this.uploadToWebService(proxy, config, req, sendResp,'3MDC');
@@ -379,6 +391,309 @@ module.exports = {
         j = 0;
       }
     }
+	
+	if (req['command'] == 'SetGuildSiegeBattleReplayData') {
+		//If wizard id and rating doesn't exist in wizardBattles[] then push to it
+      try {
+        wizardInfo = {}
+        wizardFound = false;
+        for (var k = wizardBattles.length - 1; k >= 0; k--) {
+          if (wizardBattles[k].wizard_id == req['wizard_id']) {
+            wizardBattles[k].sendBattles = [];
+            wizardFound = true;
+          }
+        }
+        if (!wizardFound) {
+          wizardInfo.wizard_id = resp.replay_info.wizard_id;
+          wizardInfo.sendBattles = [];
+          wizardBattles.push(wizardInfo);
+        }
+      } catch (e) {
+        proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `${resp['command']}-${e.message}` });
+      }
+	  try {
+	      battle = {}
+		  battle.command = "3MDCBattleLog";
+		  battle.battleType = "SiegeTest";
+		  battle.wizard_id = resp.replay_info.wizard_id;
+		  battle.wizard_name = resp.replay_info.wizard_name;
+		  battle.battleKey = resp.replay_info.battle_key;
+		  battle.guild_id = resp.replay_info.guild_id;
+		  battle.opp_wizard_id = resp.replay_info.opp_wizard_id;
+		  battle.opp_wizard_name = resp.replay_info.opp_wizard_name;
+		  battle.battleRank = 4001;
+		  battle.defense = {}
+		  battle.counter = {}
+
+        //prepare the arrays
+        units = [];
+        battle.defense.units = [];
+        battle.counter.units = [];
+        for (var j = 0; j < 3; j++) {
+          try {
+            //Offense Mons
+            battle.counter.units.push(resp.replay_info.unit_info[j][2]);
+
+            //Defense Mons
+            battle.defense.units.push(resp.replay_info.opp_unit_info[j][2]);
+          } catch (e) { }
+        }
+        //match up wizard id and push the battle
+        for (var k = wizardBattles.length - 1; k >= 0; k--) {
+          if (wizardBattles[k].wizard_id == req['wizard_id']) {
+            wizardBattles[k].sendBattles.push(battle);
+          }
+        }
+      } catch (e) {
+        proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `${resp['command']}-${e.message}` });
+      }
+		
+	  //send the request like the siege result to the server
+      var j = 0;
+      try {
+        for (var wizard in wizardBattles) {
+          for (var k = wizardBattles[wizard].sendBattles.length - 1; k >= 0; k--) {
+            //TODO: Handle multiple accounts with GW and Siege going at the same time. match battlekey and wizard. then do battles 1 and 2 and delete from the mon list.
+            if (wizardBattles[wizard].sendBattles[k].battleKey == resp.replay_info.battle_key) {
+              wizardBattles[wizard].sendBattles[k].win_lose = resp.replay_info.win_lose;
+              wizardBattles[wizard].sendBattles[k].battleDateTime = resp.tvalue - j;
+              j++;
+              sendResp = wizardBattles[wizard].sendBattles[k];
+              //remove battle from the sendBattlesList
+              wizardBattles[wizard].sendBattles.splice(k, 1);
+              //if 3 mons in offense and defense then send to webservice
+              if (sendResp.defense.units.length == 3 && sendResp.counter.units.length > 0 && sendResp.battleRank >= 4000) {
+                this.writeToFile(proxy, req, sendResp,'3MDC-'+k);
+
+                this.uploadToWebService(proxy, config, req, sendResp,'3MDC');
+                proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `Siege Test Battle Processed ${k}` });
+              }
+            }
+          }
+        }
+      } catch (e) {
+        proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `Siege Test Battle Error ${e.message}` });
+      }
+      if (j == 1) {
+        j = 0;
+      }
+    }
+	
+	//Perform the observer role to create a battle log
+	//Step 1 - Create a list of defense units for the base selected
+	//Step 2 - Add an attacking unit to an attacker array for that base and defense
+	//Step 3 - View the battle log and match up based on the time of entry and the time of battle log, once matched send the resulting wizardBattle
+	//Populate the Defense_Deck Table
+	  if (resp['command'] == 'GetGuildSiegeBaseDefenseUnitList') {
+      //If wizard id and rating doesn't exist in wizardBattles[] then push to it
+      try {
+        defenseInfo = {}
+		tempDefenseDeckInfo = [];
+		sendDecks = {}
+        
+
+        for (var deck in resp['defense_deck_list']){
+          defenseInfo = {};
+		  defenseFound = false;
+          defenseInfo.wizard_id = resp['defense_deck_list'][deck].wizard_id;
+          defenseInfo.deck_id = resp['defense_deck_list'][deck].deck_id;
+		  defenseInfo.base_id = req.base_number;
+          unitCount = 0;
+          for (var defenseUnit in resp['defense_unit_list']) {
+            if (defenseInfo.deck_id == resp['defense_unit_list'][defenseUnit].deck_id && resp['defense_unit_list'][defenseUnit].pos_id == 1 && resp['defense_unit_list'][defenseUnit].hasOwnProperty('unit_info')) {
+              defenseInfo.uniqueMon1 = resp['defense_unit_list'][defenseUnit].unit_info.unit_id;
+              defenseInfo.mon1 = resp['defense_unit_list'][defenseUnit].unit_info.unit_master_id;
+              unitCount ++;
+            }
+            if (defenseInfo.deck_id == resp['defense_unit_list'][defenseUnit].deck_id && resp['defense_unit_list'][defenseUnit].pos_id == 2 && resp['defense_unit_list'][defenseUnit].hasOwnProperty('unit_info')) {
+              defenseInfo.uniqueMon2 = resp['defense_unit_list'][defenseUnit].unit_info.unit_id;
+              defenseInfo.mon2 = resp['defense_unit_list'][defenseUnit].unit_info.unit_master_id;
+              unitCount ++;
+            }
+            if (defenseInfo.deck_id == resp['defense_unit_list'][defenseUnit].deck_id && resp['defense_unit_list'][defenseUnit].pos_id ==3 && resp['defense_unit_list'][defenseUnit].hasOwnProperty('unit_info')) {
+              defenseInfo.uniqueMon3 = resp['defense_unit_list'][defenseUnit].unit_info.unit_id;
+              defenseInfo.mon3 = resp['defense_unit_list'][defenseUnit].unit_info.unit_master_id;
+              unitCount ++;
+            }
+          }
+          //sort mon2 and mon3
+          if (unitCount == 3) {
+            if(defenseInfo.mon3 < defenseInfo.mon2) {
+              tempMon = defenseInfo.uniqueMon2;
+              tempMon2 = defenseInfo.mon2;
+              defenseInfo.uniqueMon2 = defenseInfo.uniqueMon3;
+              defenseInfo.mon2 = defenseInfo.mon3;
+              defenseInfo.uniqueMon3 = tempMon;
+              defenseInfo.mon3 = tempMon2;
+              
+            }
+            defenseInfo.deckPrimaryKey = defenseInfo.wizard_id.toString() + "_" + defenseInfo.uniqueMon1.toString() + "_" + defenseInfo.uniqueMon2.toString() + "_" + defenseInfo.uniqueMon3.toString();
+			//add attackunit and latest battlestarttime to the defenseInfo
+			for (var defenseUnitStatus in resp['defense_deck_status_list']) {
+				if(defenseInfo.deck_id == resp['defense_deck_status_list'][defenseUnitStatus].deck_id) {
+					defenseInfo.attack_wizard_id = resp['defense_deck_status_list'][defenseUnitStatus].attack_wizard_id;
+					defenseInfo.battle_start_time = resp['defense_deck_status_list'][defenseUnitStatus].battle_start_time;
+				}
+			}
+			//check if defense exists first
+			for (var k = observerDefenseInfo.length-1; k >= 0; k--) {
+				if(observerDefenseInfo[k].deck_id == defenseInfo.deck_id && observerDefenseInfo[k].attack_wizard_id == defenseInfo.attack_wizard_id && observerDefenseInfo[k].battle_start_time == defenseInfo.battle_start_time){
+					//observerDefenseInfo.push(defenseInfo) 
+					defenseFound = true;
+				}
+			}
+			if (defenseFound == false){
+				observerDefenseInfo.push(defenseInfo) 
+			}
+          }
+        }
+        sendDecks.command = "SWGTSiegeObserverDefense";
+        sendDecks.deck_units = observerDefenseInfo;
+        sendResp = sendDecks;
+      } catch (e) {
+        proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `${resp['command']}-${e.message}` });
+      }
+    }
+	
+	//Step 2
+	if (resp['command'] == 'GetGuildSiegeAttackUnitListInBattle') {
+      //If wizard id and rating doesn't exist in wizardBattles[] then push to it
+      try {
+        attackInfo = {}
+		tempDefenseDeckInfo = [];
+		sendDecks = {}
+        
+
+        for (var deck in resp['guildsiege_attack_unit_list']){
+          attackInfo = {};
+		  attackFound = false;
+          attackInfo.attack_wizard_id = resp['guildsiege_attack_unit_list'][deck].wizard_id;
+		  attackInfo.attack_wizard_name = resp['wizard_info_list'][0].wizard_name;
+          attackInfo.deck_id = req.deck_id;
+		  attackInfo.base_id = req.base_number;
+          unitCount = 0;
+          for (var attackUnit in resp['guildsiege_attack_unit_list'][deck].unit_list) {
+			  
+            if (resp['guildsiege_attack_unit_list'][deck].unit_list[attackUnit].pos_id == 1) {
+              attackInfo.uniqueMon1 = resp['guildsiege_attack_unit_list'][deck].unit_list[attackUnit].unit_id;
+              attackInfo.mon1 = resp['guildsiege_attack_unit_list'][deck].unit_list[attackUnit].unit_master_id;
+              unitCount ++;
+			  
+            }
+            if (resp['guildsiege_attack_unit_list'][deck].unit_list[attackUnit].pos_id == 2) {
+              attackInfo.uniqueMon2 = resp['guildsiege_attack_unit_list'][deck].unit_list[attackUnit].unit_id;
+              attackInfo.mon2 = resp['guildsiege_attack_unit_list'][deck].unit_list[attackUnit].unit_master_id;
+              unitCount ++;
+            }
+            if (resp['guildsiege_attack_unit_list'][deck].unit_list[attackUnit].pos_id == 3) {
+              attackInfo.uniqueMon3 = resp['guildsiege_attack_unit_list'][deck].unit_list[attackUnit].unit_id;
+              attackInfo.mon3 = resp['guildsiege_attack_unit_list'][deck].unit_list[attackUnit].unit_master_id;
+              unitCount ++;
+            }
+          }
+          //sort mon2 and mon3
+          if (unitCount == 3) {
+            if(attackInfo.mon3 < attackInfo.mon2) {
+              tempMon = attackInfo.uniqueMon2;
+              tempMon2 = attackInfo.mon2;
+              attackInfo.uniqueMon2 = attackInfo.uniqueMon3;
+              attackInfo.mon2 = attackInfo.mon3;
+              attackInfo.uniqueMon3 = tempMon;
+              attackInfo.mon3 = tempMon2;
+              
+            }
+            attackInfo.deckPrimaryKey = attackInfo.attack_wizard_id.toString() + "_" + attackInfo.uniqueMon1.toString() + "_" + attackInfo.uniqueMon2.toString() + "_" + attackInfo.uniqueMon3.toString();
+			//add attackunit and latest battlestarttime to the attackInfo
+			attackInfo.battle_start_time = resp.tvalue;
+
+			//check if defense exists first
+			for (var k = observerAttackerList.length-1; k >= 0; k--) {
+				if(observerAttackerList[k].deck_id == attackInfo.deck_id && observerAttackerList[k].attack_wizard_id == attackInfo.attack_wizard_id && observerAttackerList[k].deckPrimaryKey == attackInfo.deckPrimaryKey){
+					//observerDefenseInfo.push(defenseInfo) 
+					attackFound = true;
+				}
+			}
+			if (attackFound == false){
+				observerAttackerList.push(attackInfo) 
+			}
+          }
+        }
+        sendDecks.command = "SWGTSiegeObserverAttack";
+        sendDecks.deck_units = observerAttackerList;
+        sendResp = sendDecks;
+      } catch (e) {
+        proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `${resp['command']}-${e.message}` });
+      }
+    }
+	
+	//Step 3--Review Attacker Battle log and remove defense//attack pairs....could be multiple attackers per one defense so clear all attacks before removing a defense from the list or just on defense loss.
+	if (req['command'] == 'GetGuildSiegeBattleLog' && resp['log_type']==1) {
+      try {
+        for (var battle1 in resp['log_list'][0].battle_log_list) {  //go through each recorded offense
+		//first see if you can find a defense that matches by base number
+          for (var k = observerDefenseInfo.length - 1; k >= 0; k--) {
+            if (resp['log_list'][0].battle_log_list[battle1].base_number==observerDefenseInfo[k].base_id && resp['log_list'][0].battle_log_list[battle1].opp_wizard_id == observerDefenseInfo[k].wizard_id){
+				//once a defense is found, search the attacker list to find any matches for this base, and attack log
+				for (var j = observerAttackerList.length -1; j>=0;j--){
+					
+					if(resp['log_list'][0].battle_log_list[battle1].wizard_id == observerAttackerList[j].attack_wizard_id && observerAttackerList[j].deck_id==observerDefenseInfo[k].deck_id &&
+						observerDefenseInfo[k].battle_start_time<observerAttackerList[j].battle_start_time && observerAttackerList[j].battle_start_time<resp['log_list'][0].battle_log_list[battle1].log_timestamp) {
+						battle = {}
+						battle.command = "3MDCBattleLog";
+						battle.battleType = "SiegeObserver";
+						battle.wizard_id = observerAttackerList[j].attack_wizard_id;
+						battle.wizard_name = observerAttackerList[j].attack_wizard_name;
+						battle.defense = {}
+						battle.counter = {}
+
+						//prepare the arrays
+						units = [];
+						battle.defense.units = [];
+						battle.counter.units = [];
+						//for (var m = 0; m < 3; m++) {
+						  try {
+							//Offense Mons
+							battle.counter.units.push(observerAttackerList[j].mon1);
+							battle.counter.units.push(observerAttackerList[j].mon2);
+							battle.counter.units.push(observerAttackerList[j].mon3);
+
+							//Defense Mons
+							battle.defense.units.push(observerDefenseInfo[k].mon1);
+							battle.defense.units.push(observerDefenseInfo[k].mon2);
+							battle.defense.units.push(observerDefenseInfo[k].mon3);
+						  } catch (e) { }
+						//}
+						//match up wizard id for guild rank
+						for (var m = wizardBattles.length - 1; m >= 0; m--) {
+						  if (wizardBattles[m].wizard_id == req['wizard_id']) {
+							//store battle in array
+							battle.battleRank = wizardBattles[m].siege_rating_id;
+							battle.guild_id = wizardBattles[m].guild_id;
+						  }
+						}
+						//win/loss info and then send the battle and remove from the attack list
+						battle.win_lose = resp['log_list'][0].battle_log_list[battle1].win_lose;
+						battle.battleDateTime = resp['log_list'][0].battle_log_list[battle1].log_timestamp;
+						battle.battleKey = Number(battle.wizard_id.toString() + battle.battleDateTime.toString());
+						sendResp = battle;
+						if (sendResp.defense.units.length == 3 && sendResp.counter.units.length > 0 && sendResp.battleRank >= 0) {
+							this.writeToFile(proxy, req, sendResp,'3MDC-Obs3-'+j+'-'+k+'-');
+							this.uploadToWebService(proxy, config, req, sendResp,'3MDC');
+							proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `Siege Observer End Processed ${observerAttackerList[j].attack_wizard_name}` });
+					  }
+					  observerAttackerList.splice(j,1);
+					}
+				} //end attacker loop check
+				//all attackers against this defense have been checked...remove this defense
+				observerDefenseInfo.splice(k,1);
+			} //end defense if statement
+          } //end defense loop
+        }//end loop through battle log attacks
+      } catch (e) {
+        proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `Siege Battle End Error ${e.message}` });
+      }
+    }
+	
   },
   
   processSWGTHistoryRequest(command, proxy, config, req, resp, cache) {
