@@ -61,8 +61,8 @@ module.exports = {
       //Labyrinth
       'GetGuildMazeStatusInfo',
       'GetGuildMazeContributeList',
-	    'GetGuildMazeBattleLogByWizard',
-	    'GetGuildMazeBattleLogByTile'
+	  'GetGuildMazeBattleLogByWizard',
+	  'GetGuildMazeBattleLogByTile'
     ];
 
     var listenTo3MDCCommands = [
@@ -77,6 +77,7 @@ module.exports = {
       'GetGuildSiegeMatchupInfo',
 	  
 	  //TestingSiegeReplays
+	  'GetGuildSiegeRankingInfo',//rating_id
 	  'SetGuildSiegeBattleReplayData',
 	  
 	  //AttackViewerInstance
@@ -88,13 +89,13 @@ module.exports = {
     ];
 	
 	var listenToSWGTHistoryCommands = [
-    //Siege Defense Units
-    'GetGuildSiegeBaseDefenseUnitList',
-    'GetGuildSiegeBaseDefenseUnitListPreset',
-	  'GetGuildSiegeDefenseDeckByWizardId',
+		//Siege Defense Units
+		'GetGuildSiegeBaseDefenseUnitList',
+		'GetGuildSiegeBaseDefenseUnitListPreset',
+		'GetGuildSiegeDefenseDeckByWizardId',
 	  
-	  //Defense Log Link
-	  'GetGuildSiegeBattleLogByDeckId'
+		//Defense Log Link
+		'GetGuildSiegeBattleLogByDeckId'
   ];
 	
 	
@@ -189,10 +190,82 @@ module.exports = {
 
       resp = pruned
     }
-
+	
+	//update siege battle map packet
+	if (resp['command'] == 'GetGuildSiegeMatchupInfo') {
+		try{
+			//wizard id from request---guild id in member list---guild id
+			wizardid = req['wizard_id'];
+			packetInfo = {};
+			packetInfo.guilds = [];
+			
+			blueGuildID = 0;
+			bluePosID = 0;
+			for (var wizard in resp.wizard_info_list){
+				if (wizardid == resp.wizard_info_list[wizard].wizard_id) {
+					blueGuildID = resp.wizard_info_list[wizard].guild_id;
+					
+				}
+			}
+			
+			yellowPosID = 0;
+			redPosID = 0;
+			for (var guild in resp.guild_list){
+				if (blueGuildID == resp.guild_list[guild].guild_id){
+					bluePosID = resp.guild_list[guild].pos_id;
+					if (bluePosID == 1){
+						yellowPosID = 2;
+						redPosID = 3;
+					}
+					if (bluePosID == 2){
+						yellowPosID = 3;
+						redPosID = 1;
+					}
+					if (bluePosID == 3){
+						yellowPosID = 1;
+						redPosID = 2;
+					}
+				}
+			}
+			for (var guild in resp.guild_list){
+				guildInfo = {}
+				guildInfo.guild_id = resp.guild_list[guild].guild_id;
+				guildInfo.pos_id = resp.guild_list[guild].pos_id;
+				if (bluePosID == guildInfo.pos_id)
+					guildInfo.color = "blue";
+				if (yellowPosID == guildInfo.pos_id)
+					guildInfo.color = "yellow";
+				if (redPosID == guildInfo.pos_id)
+					guildInfo.color = "red";
+				towerInfo = [];
+				for (var base in resp.base_list){
+					if (resp.base_list[base].guild_id == resp.guild_list[guild].guild_id && resp.base_list[base].base_type>1){
+						towerInfo.push(resp.base_list[base].base_number);
+					}
+				}
+				guildInfo.towers = towerInfo;
+				packetInfo.guilds.push(guildInfo);
+			}
+			packetInfo.command = "SiegeBaseColors";
+			packetInfo.siege_id=resp.match_info.siege_id;
+			packetInfo.match_id=resp.match_info.match_id;
+			packetInfo.guild_id=blueGuildID;
+			packetInfo.date_time_stamp=resp.tvalue;
+			
+			resp2 = packetInfo;
+			this.writeToFile(proxy, req, resp2,'SWGT');
+			if (this.hasCacheMatch(proxy, config, req, resp2, cache)) return;
+			this.uploadToWebService(proxy, config, req, resp2,'SWGT');
+		} catch (e) {
+			proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `${resp2['command']}-${e.message}` });
+      }
+	}
+	
     this.writeToFile(proxy, req, resp,'SWGT');
     if (this.hasCacheMatch(proxy, config, req, resp, cache)) return;
     this.uploadToWebService(proxy, config, req, resp,'SWGT');
+	
+	
   },
   process3MDCRequest(command, proxy, config, req, resp, cache) {
     if (!config.Config.Plugins[pluginName].uploadBattles) return false;
@@ -222,6 +295,31 @@ module.exports = {
         proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `${resp['command']}-${e.message}` });
       }
     }
+	if (resp['command'] == 'GetGuildSiegeRankingInfo') {
+      //If wizard id and rating doesn't exist in wizardBattles[] then push to it
+      try {
+        wizardInfo = {}
+        wizardFound = false;
+        for (var k = wizardBattles.length - 1; k >= 0; k--) {
+          if (wizardBattles[k].wizard_id == req['wizard_id']) {
+            //update rating id
+            wizardBattles[k].siege_rating_id = resp['guildsiege_ranking_info']['rating_id'];
+			wizardBattles[k].guild_id = resp['guildsiege_ranking_info']['guild_id'];
+            wizardBattles[k].sendBattles = [];
+            wizardFound = true;
+          }
+        }
+        if (!wizardFound) {
+          wizardInfo.wizard_id = req['wizard_id'];
+          wizardInfo.siege_rating_id = resp['guildsiege_ranking_info']['rating_id'];
+		  wizardInfo.guild_id = resp['guildsiege_ranking_info']['guild_id'];
+          wizardInfo.sendBattles = [];
+          wizardBattles.push(wizardInfo);
+        }
+      } catch (e) {
+        proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `${resp['command']}-${e.message}` });
+      }
+    }
     if (resp['command'] == 'GetGuildSiegeMatchupInfo') {
       //If wizard id and rating doesn't exist in wizardBattles[] then push to it
       try {
@@ -230,6 +328,13 @@ module.exports = {
         for (var k = wizardBattles.length - 1; k >= 0; k--) {
           if (wizardBattles[k].wizard_id == req['wizard_id']) {
             wizardBattles[k].siege_rating_id = resp['match_info']['rating_id'];
+
+			//clear attack and defense lists on new siege matchid for a specific wizard (to allow for multiple guilds being watched by the same plugin)
+			if (wizardBattles[k].match_id != resp['match_info']['match_id']){
+				wizardBattles[k].observerDefenseInfo = [];
+				wizardBattles[k].observerAttackerList = [];
+			}
+			wizardBattles[k].match_id = resp['match_info']['match_id'];
             for (var wizard in resp['wizard_info_list']){
               if (resp['wizard_info_list'][wizard].wizard_id == req['wizard_id']){
                 wizardBattles[k].guild_id = resp['wizard_info_list'][wizard].guild_id;
@@ -242,6 +347,9 @@ module.exports = {
         if (!wizardFound) {
           wizardInfo.wizard_id = req['wizard_id'];
           wizardInfo.siege_rating_id = resp['match_info']['rating_id'];
+		  wizardInfo.match_id = resp['match_info']['match_id'];
+		  wizardInfo.observerDefenseInfo = [];
+		  wizardInfo.observerAttackerList = [];
           for (var wizard in resp['wizard_info_list']){
             if (resp['wizard_info_list'][wizard].wizard_id == req['wizard_id']){
               wizardInfo.guild_id = resp['wizard_info_list'][wizard].guild_id;
@@ -271,11 +379,12 @@ module.exports = {
           units = [];
           battle.defense.units = [];
           battle.counter.units = [];
+		  battle.counter.unique = [];
           for (var j = 0; j < 3; j++) {
             try {
               //Offense Mons
               battle.counter.units.push(resp.guildwar_my_unit_list[i][j].unit_master_id);
-
+			  battle.counter.unique.push(resp.guildwar_my_unit_list[i][j].unit_id);
               //Defense Mons
               battle.defense.units.push(resp.guildwar_opp_unit_list[i][j].unit_info.unit_master_id);
             } catch (e) { }
@@ -285,7 +394,7 @@ module.exports = {
             if (wizardBattles[k].wizard_id == req['wizard_id']) {
               //store battle in array
               battle.battleRank = wizardBattles[k].guild_rating_id;
-			        battle.guild_id = wizardBattles[k].guild_id;
+			  battle.guild_id = wizardBattles[k].guild_id;
               wizardBattles[k].sendBattles.push(battle);
             }
           }
@@ -309,13 +418,15 @@ module.exports = {
         units = [];
         battle.defense.units = [];
         battle.counter.units = [];
+		battle.counter.unique = [];
         for (var j = 0; j < 3; j++) {
           try {
+			//Defense Mons
+            battle.defense.units.push(resp.guildsiege_opp_unit_list[j].unit_info.unit_master_id);
             //Offense Mons
             battle.counter.units.push(resp.guildsiege_my_unit_list[j].unit_master_id);
-
-            //Defense Mons
-            battle.defense.units.push(resp.guildsiege_opp_unit_list[j].unit_info.unit_master_id);
+			battle.counter.unique.push(resp.guildsiege_my_unit_list[j].unit_id);
+            
           } catch (e) { }
         }
         //match up wizard id and push the battle
@@ -323,7 +434,7 @@ module.exports = {
           if (wizardBattles[k].wizard_id == req['wizard_id']) {
             //store battle in array
             battle.battleRank = wizardBattles[k].siege_rating_id;
-		      	battle.guild_id = wizardBattles[k].guild_id;
+		    battle.guild_id = wizardBattles[k].guild_id;
             wizardBattles[k].sendBattles.push(battle);
           }
         }
@@ -412,38 +523,43 @@ module.exports = {
         proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `${resp['command']}-${e.message}` });
       }
 	  try {
-	      battle = {}
-		  battle.command = "3MDCBattleLog";
-		  battle.battleType = "SiegeTest";
-		  battle.wizard_id = resp.replay_info.wizard_id;
-		  battle.wizard_name = resp.replay_info.wizard_name;
-		  battle.battleKey = resp.replay_info.battle_key;
-		  battle.guild_id = resp.replay_info.guild_id;
-		  battle.opp_wizard_id = resp.replay_info.opp_wizard_id;
-		  battle.opp_wizard_name = resp.replay_info.opp_wizard_name;
-		  battle.battleRank = 4001;
-		  battle.defense = {}
-		  battle.counter = {}
+		  if (resp.replay_info.guild_id == resp.replay_info.opp_guild_id) {
+				  battle = {}
+				  battle.command = "3MDCBattleLog";
+				  battle.battleType = "SiegeTest";
+				  battle.wizard_id = resp.replay_info.wizard_id;
+				  battle.wizard_name = resp.replay_info.wizard_name;
+				  battle.battleKey = resp.replay_info.battle_key;
+				  battle.guild_id = resp.replay_info.guild_id;
+				  battle.opp_wizard_id = resp.replay_info.opp_wizard_id;
+				  battle.opp_wizard_name = resp.replay_info.opp_wizard_name;
+				  battle.battleRank = 4001;
+				  battle.defense = {}
+				  battle.counter = {}
 
-        //prepare the arrays
-        units = [];
-        battle.defense.units = [];
-        battle.counter.units = [];
-        for (var j = 0; j < 3; j++) {
-          try {
-            //Offense Mons
-            battle.counter.units.push(resp.replay_info.unit_info[j][2]);
-
-            //Defense Mons
-            battle.defense.units.push(resp.replay_info.opp_unit_info[j][2]);
-          } catch (e) { }
-        }
-        //match up wizard id and push the battle
-        for (var k = wizardBattles.length - 1; k >= 0; k--) {
-          if (wizardBattles[k].wizard_id == req['wizard_id']) {
-            wizardBattles[k].sendBattles.push(battle);
-          }
-        }
+				//prepare the arrays
+				units = [];
+				battle.defense.units = [];
+				battle.counter.units = [];
+				battle.counter.unique = [];
+				for (var j = 0; j < 3; j++) {
+				  try {
+					
+					//Defense Mons
+					battle.defense.units.push(resp.replay_info.opp_unit_info[j][2]);
+					//Offense Mons
+					battle.counter.units.push(resp.replay_info.unit_info[j][2]);
+					battle.counter.unique.push(resp.replay_info.unit_info[j][1]);
+				  } catch (e) { }
+				}
+				//match up wizard id and push the battle
+				for (var k = wizardBattles.length - 1; k >= 0; k--) {
+				  if (wizardBattles[k].wizard_id == req['wizard_id']) {
+					battle.battleRank = wizardBattles[k].siege_rating_id;
+					wizardBattles[k].sendBattles.push(battle);
+				  }
+				}
+		  }
       } catch (e) {
         proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `${resp['command']}-${e.message}` });
       }
@@ -462,7 +578,7 @@ module.exports = {
               //remove battle from the sendBattlesList
               wizardBattles[wizard].sendBattles.splice(k, 1);
               //if 3 mons in offense and defense then send to webservice
-              if (sendResp.defense.units.length == 3 && sendResp.counter.units.length > 0 && sendResp.battleRank >= 4000) {
+              if (sendResp.defense.units.length == 3 && sendResp.counter.units.length > 0) {
                 this.writeToFile(proxy, req, sendResp,'3MDC-'+k);
 
                 this.uploadToWebService(proxy, config, req, sendResp,'3MDC');
@@ -487,6 +603,12 @@ module.exports = {
 	  if (resp['command'] == 'GetGuildSiegeBaseDefenseUnitList') {
       //If wizard id and rating doesn't exist in wizardBattles[] then push to it
       try {
+		var wizardIndex=0; //match wizardID
+		 for (var k = wizardBattles.length - 1; k >= 0; k--) {
+          if (wizardBattles[k].wizard_id == req['wizard_id']) {
+            wizardIndex = k;
+          }
+        }
         defenseInfo = {}
 		tempDefenseDeckInfo = [];
 		sendDecks = {}
@@ -536,19 +658,21 @@ module.exports = {
 				}
 			}
 			//check if defense exists first
-			for (var k = observerDefenseInfo.length-1; k >= 0; k--) {
-				if(observerDefenseInfo[k].deck_id == defenseInfo.deck_id && observerDefenseInfo[k].attack_wizard_id == defenseInfo.attack_wizard_id && observerDefenseInfo[k].battle_start_time == defenseInfo.battle_start_time){
+			for (var k = wizardBattles[wizardIndex].observerDefenseInfo.length-1; k >= 0; k--) {
+				if(wizardBattles[wizardIndex].observerDefenseInfo[k].deck_id == defenseInfo.deck_id && 
+				wizardBattles[wizardIndex].observerDefenseInfo[k].attack_wizard_id == defenseInfo.attack_wizard_id && 
+				wizardBattles[wizardIndex].observerDefenseInfo[k].battle_start_time == defenseInfo.battle_start_time){
 					//observerDefenseInfo.push(defenseInfo) 
 					defenseFound = true;
 				}
 			}
 			if (defenseFound == false){
-				observerDefenseInfo.push(defenseInfo) 
+				wizardBattles[wizardIndex].observerDefenseInfo.push(defenseInfo) 
 			}
           }
         }
         sendDecks.command = "SWGTSiegeObserverDefense";
-        sendDecks.deck_units = observerDefenseInfo;
+        sendDecks.deck_units = wizardBattles[wizardIndex].observerDefenseInfo;
         sendResp = sendDecks;
       } catch (e) {
         proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `${resp['command']}-${e.message}` });
@@ -559,6 +683,12 @@ module.exports = {
 	if (resp['command'] == 'GetGuildSiegeAttackUnitListInBattle') {
       //If wizard id and rating doesn't exist in wizardBattles[] then push to it
       try {
+		 var wizardIndex=0; //match wizardID
+		 for (var k = wizardBattles.length - 1; k >= 0; k--) {
+          if (wizardBattles[k].wizard_id == req['wizard_id']) {
+            wizardIndex = k;
+          }
+        }
         attackInfo = {}
 		tempDefenseDeckInfo = [];
 		sendDecks = {}
@@ -607,19 +737,21 @@ module.exports = {
 			attackInfo.battle_start_time = resp.tvalue;
 
 			//check if defense exists first
-			for (var k = observerAttackerList.length-1; k >= 0; k--) {
-				if(observerAttackerList[k].deck_id == attackInfo.deck_id && observerAttackerList[k].attack_wizard_id == attackInfo.attack_wizard_id && observerAttackerList[k].deckPrimaryKey == attackInfo.deckPrimaryKey){
+			for (var k = wizardBattles[wizardIndex].observerAttackerList.length-1; k >= 0; k--) {
+				if(wizardBattles[wizardIndex].observerAttackerList[k].deck_id == attackInfo.deck_id && 
+				wizardBattles[wizardIndex].observerAttackerList[k].attack_wizard_id == attackInfo.attack_wizard_id && 
+				wizardBattles[wizardIndex].observerAttackerList[k].deckPrimaryKey == attackInfo.deckPrimaryKey){
 					//observerDefenseInfo.push(defenseInfo) 
 					attackFound = true;
 				}
 			}
 			if (attackFound == false){
-				observerAttackerList.push(attackInfo) 
+				wizardBattles[wizardIndex].observerAttackerList.push(attackInfo) 
 			}
           }
         }
         sendDecks.command = "SWGTSiegeObserverAttack";
-        sendDecks.deck_units = observerAttackerList;
+        sendDecks.deck_units = wizardBattles[wizardIndex].observerAttackerList;
         sendResp = sendDecks;
       } catch (e) {
         proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `${resp['command']}-${e.message}` });
@@ -629,20 +761,30 @@ module.exports = {
 	//Step 3--Review Attacker Battle log and remove defense//attack pairs....could be multiple attackers per one defense so clear all attacks before removing a defense from the list or just on defense loss.
 	if (req['command'] == 'GetGuildSiegeBattleLog' && resp['log_type']==1) {
       try {
-        for (var battle1 in resp['log_list'][0].battle_log_list) {  //go through each recorded offense
+		var wizardIndex=0; //match wizardID
+		 for (var k = wizardBattles.length - 1; k >= 0; k--) {
+          if (wizardBattles[k].wizard_id == req['wizard_id']) {
+            wizardIndex = k;
+          }
+        }  
+        for (var battle1 = resp['log_list'][0].battle_log_list.length - 1; battle1 >= 0; battle1--) {  //go through each recorded offense
 		//first see if you can find a defense that matches by base number
-          for (var k = observerDefenseInfo.length - 1; k >= 0; k--) {
-            if (resp['log_list'][0].battle_log_list[battle1].base_number==observerDefenseInfo[k].base_id && resp['log_list'][0].battle_log_list[battle1].opp_wizard_id == observerDefenseInfo[k].wizard_id){
+          for (var k = wizardBattles[wizardIndex].observerDefenseInfo.length - 1; k >= 0; k--) {
+            if (resp['log_list'][0].battle_log_list[battle1].base_number==wizardBattles[wizardIndex].observerDefenseInfo[k].base_id && 
+			resp['log_list'][0].battle_log_list[battle1].opp_wizard_id == wizardBattles[wizardIndex].observerDefenseInfo[k].wizard_id){
 				//once a defense is found, search the attacker list to find any matches for this base, and attack log
-				for (var j = observerAttackerList.length -1; j>=0;j--){
+				var defenseDefeated = false;
+				for (var j = wizardBattles[wizardIndex].observerAttackerList.length -1; j>=0;j--){
 					
-					if(resp['log_list'][0].battle_log_list[battle1].wizard_id == observerAttackerList[j].attack_wizard_id && observerAttackerList[j].deck_id==observerDefenseInfo[k].deck_id &&
-						observerDefenseInfo[k].battle_start_time<observerAttackerList[j].battle_start_time && observerAttackerList[j].battle_start_time<resp['log_list'][0].battle_log_list[battle1].log_timestamp) {
+					if(resp['log_list'][0].battle_log_list[battle1].wizard_id == wizardBattles[wizardIndex].observerAttackerList[j].attack_wizard_id && 
+						wizardBattles[wizardIndex].observerAttackerList[j].deck_id==wizardBattles[wizardIndex].observerDefenseInfo[k].deck_id &&
+						wizardBattles[wizardIndex].observerDefenseInfo[k].battle_start_time<wizardBattles[wizardIndex].observerAttackerList[j].battle_start_time && 
+						wizardBattles[wizardIndex].observerAttackerList[j].battle_start_time<resp['log_list'][0].battle_log_list[battle1].log_timestamp) {
 						battle = {}
 						battle.command = "3MDCBattleLog";
 						battle.battleType = "SiegeObserver";
-						battle.wizard_id = observerAttackerList[j].attack_wizard_id;
-						battle.wizard_name = observerAttackerList[j].attack_wizard_name;
+						battle.wizard_id = wizardBattles[wizardIndex].observerAttackerList[j].attack_wizard_id;
+						battle.wizard_name = wizardBattles[wizardIndex].observerAttackerList[j].attack_wizard_name;
 						battle.defense = {}
 						battle.counter = {}
 
@@ -650,17 +792,24 @@ module.exports = {
 						units = [];
 						battle.defense.units = [];
 						battle.counter.units = [];
+						battle.counter.unique = [];
 						//for (var m = 0; m < 3; m++) {
 						  try {
-							//Offense Mons
-							battle.counter.units.push(observerAttackerList[j].mon1);
-							battle.counter.units.push(observerAttackerList[j].mon2);
-							battle.counter.units.push(observerAttackerList[j].mon3);
+							
 
 							//Defense Mons
-							battle.defense.units.push(observerDefenseInfo[k].mon1);
-							battle.defense.units.push(observerDefenseInfo[k].mon2);
-							battle.defense.units.push(observerDefenseInfo[k].mon3);
+							battle.defense.units.push(wizardBattles[wizardIndex].observerDefenseInfo[k].mon1);
+							battle.defense.units.push(wizardBattles[wizardIndex].observerDefenseInfo[k].mon2);
+							battle.defense.units.push(wizardBattles[wizardIndex].observerDefenseInfo[k].mon3);
+							
+							//Offense Mons
+							battle.counter.units.push(wizardBattles[wizardIndex].observerAttackerList[j].mon1);
+							battle.counter.units.push(wizardBattles[wizardIndex].observerAttackerList[j].mon2);
+							battle.counter.units.push(wizardBattles[wizardIndex].observerAttackerList[j].mon3);
+							
+							battle.counter.unique.push(wizardBattles[wizardIndex].observerAttackerList[j].uniqueMon1);
+							battle.counter.unique.push(wizardBattles[wizardIndex].observerAttackerList[j].uniqueMon2);
+							battle.counter.unique.push(wizardBattles[wizardIndex].observerAttackerList[j].uniqueMon3);
 						  } catch (e) { }
 						//}
 						//match up wizard id for guild rank
@@ -673,19 +822,25 @@ module.exports = {
 						}
 						//win/loss info and then send the battle and remove from the attack list
 						battle.win_lose = resp['log_list'][0].battle_log_list[battle1].win_lose;
+						if (battle.win_lose==1) {
+							defenseDefeated = true;
+						}
 						battle.battleDateTime = resp['log_list'][0].battle_log_list[battle1].log_timestamp;
 						battle.battleKey = Number(battle.wizard_id.toString() + battle.battleDateTime.toString());
 						sendResp = battle;
 						if (sendResp.defense.units.length == 3 && sendResp.counter.units.length > 0 && sendResp.battleRank >= 0) {
+							req['command']="SiegeObserverBattle";
 							this.writeToFile(proxy, req, sendResp,'3MDC-Obs3-'+j+'-'+k+'-');
 							this.uploadToWebService(proxy, config, req, sendResp,'3MDC');
-							proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `Siege Observer End Processed ${observerAttackerList[j].attack_wizard_name}` });
+							proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `Siege Observer End Processed ${wizardBattles[wizardIndex].observerAttackerList[j].attack_wizard_name}` });
 					  }
-					  observerAttackerList.splice(j,1);
+					  wizardBattles[wizardIndex].observerAttackerList.splice(j,1);
 					}
 				} //end attacker loop check
-				//all attackers against this defense have been checked...remove this defense
-				observerDefenseInfo.splice(k,1);
+				//if one of the attackers defeated the defense then remove this defense from the observerdefense array
+				if (defenseDefeated){
+					wizardBattles[wizardIndex].observerDefenseInfo.splice(k,1);
+				}
 			} //end defense if statement
           } //end defense loop
         }//end loop through battle log attacks
@@ -702,8 +857,8 @@ module.exports = {
       //If wizard id and rating doesn't exist in wizardBattles[] then push to it
       try {
         defenseInfo = {}
-		    tempDefenseDeckInfo = [];
-		    sendDecks = {}
+		tempDefenseDeckInfo = [];
+		sendDecks = {}
         defenseFound = false;
 
         for (var deck in resp['defense_deck_list']){
@@ -767,9 +922,9 @@ module.exports = {
 		    
         //find the deckid info that matches in the tempDefenseDeckInfo
         for (var k = tempDefenseDeckInfo.length - 1; k >= 0; k--) {
-                if (tempDefenseDeckInfo[k].deck_id == req['target_deck_id']) {
-            deckIDPrimaryKey = tempDefenseDeckInfo[k].wizard_id.toString() + "_" + tempDefenseDeckInfo[k].uniqueMon1.toString() + "_" + tempDefenseDeckInfo[k].uniqueMon2.toString() + "_" + tempDefenseDeckInfo[k].uniqueMon3.toString();
-          }
+			if (tempDefenseDeckInfo[k].deck_id == req['target_deck_id']) {
+				deckIDPrimaryKey = tempDefenseDeckInfo[k].wizard_id.toString() + "_" + tempDefenseDeckInfo[k].uniqueMon1.toString() + "_" + tempDefenseDeckInfo[k].uniqueMon2.toString() + "_" + tempDefenseDeckInfo[k].uniqueMon3.toString();
+			}
         }
         for ( var siegewar in resp['log_list']){
           for (var battleLog in resp['log_list'][siegewar].battle_log_list){
@@ -791,7 +946,7 @@ module.exports = {
         sendDecks.deck_log_history = deckLogLink;
         sendResp = sendDecks;
         this.writeToFile(proxy, req, sendResp,'SWGT3-');
-		    if (this.hasCacheMatch(proxy, config, req, sendResp, cache)) return;
+		if (this.hasCacheMatch(proxy, config, req, sendResp, cache)) return;
         this.uploadToWebService(proxy, config, req, sendResp,'SWGT');
       } catch (e) {
         proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `${resp['command']}-${e.message}` });
@@ -810,9 +965,9 @@ module.exports = {
       resp['command'] != 'VisitFriend' &&
       resp['command'] != 'GetGuildWarRanking' &&
       resp['command'] != 'GetGuildSiegeRankingInfo' &&
-	    resp['command'] != 'GetGuildMazeContributeList' &&
-	    resp['command'] != 'GetGuildMazeStatusInfo' &&
-	    resp['command'] != 'GetGuildMazeBattleLogByWizard' 
+	  resp['command'] != 'GetGuildMazeContributeList' &&
+	  resp['command'] != 'GetGuildMazeStatusInfo' &&
+	  resp['command'] != 'GetGuildMazeBattleLogByWizard' 
     ) {
       if ('tvalue' in resp) { delete resp['tvalue'] };
     }
