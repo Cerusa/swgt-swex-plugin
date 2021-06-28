@@ -41,6 +41,7 @@ module.exports = {
 
       //Guild Info
       'getGuildAttendInfo',
+	  'GetGuildInfo',
 
       //Guild War
       'GetGuildWarBattleLogByGuildId',
