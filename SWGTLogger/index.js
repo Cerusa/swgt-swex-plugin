@@ -2,7 +2,7 @@ const request = require('request');
 const fs = require('fs');
 const path = require('path');
 const pluginName = 'SWGTLogger';
-const pluginVersion = '2021-06-30_1003';
+const pluginVersion = '2021-07-03_0755';
 var wizardBattles = [];
 var sendBattles = [];
 var tempDefenseDeckInfo = [];
@@ -41,7 +41,9 @@ module.exports = {
 
       //Guild Info
       'getGuildAttendInfo',
-	  'GetGuildInfo',
+      'GetGuildInfo',
+      'GetGuildInfoByName',
+      'GetGuildInfoForChat',
 
       //Guild War
       'GetGuildWarBattleLogByGuildId',
@@ -62,8 +64,8 @@ module.exports = {
       //Labyrinth
       'GetGuildMazeStatusInfo',
       'GetGuildMazeContributeList',
-	  'GetGuildMazeBattleLogByWizard',
-	  'GetGuildMazeBattleLogByTile'
+	    'GetGuildMazeBattleLogByWizard',
+	    'GetGuildMazeBattleLogByTile'
     ];
 
     var listenTo3MDCCommands = [
@@ -77,26 +79,24 @@ module.exports = {
       'BattleGuildSiegeResult',
       'GetGuildSiegeMatchupInfo',
 	  
-	  //TestingSiegeReplays
-	  'GetGuildSiegeRankingInfo',//rating_id
-	  'SetGuildSiegeBattleReplayData',
+	    //TestingSiegeReplays
+	    'GetGuildSiegeRankingInfo',//rating_id
+	    'SetGuildSiegeBattleReplayData',
 	  
-	  //AttackViewerInstance
-	  'GetGuildSiegeBaseDefenseUnitList',
-	  'GetGuildSiegeAttackUnitListInBattle',
-	  'GetGuildSiegeBattleLog'
-	  
-	  
+	    //AttackViewerInstance
+	    'GetGuildSiegeBaseDefenseUnitList',
+	    'GetGuildSiegeAttackUnitListInBattle',
+	    'GetGuildSiegeBattleLog'
     ];
 	
 	var listenToSWGTHistoryCommands = [
-		//Siege Defense Units
-		'GetGuildSiegeBaseDefenseUnitList',
-		'GetGuildSiegeBaseDefenseUnitListPreset',
-		'GetGuildSiegeDefenseDeckByWizardId',
+		  //Siege Defense Units
+		  'GetGuildSiegeBaseDefenseUnitList',
+		  'GetGuildSiegeBaseDefenseUnitListPreset',
+		  'GetGuildSiegeDefenseDeckByWizardId',
 	  
-		//Defense Log Link
-		'GetGuildSiegeBattleLogByDeckId'
+		  //Defense Log Link
+		  'GetGuildSiegeBattleLogByDeckId'
   ];
 	
 	
