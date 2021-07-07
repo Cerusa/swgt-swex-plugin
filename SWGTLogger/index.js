@@ -920,27 +920,31 @@ module.exports = {
 		    targetdeckid = req['target_deck_id'];
 		    sendDecks = {}
 		    deckLogLink=[]
+			deckwizardID = 0;
 		    
         //find the deckid info that matches in the tempDefenseDeckInfo
         for (var k = tempDefenseDeckInfo.length - 1; k >= 0; k--) {
 			if (tempDefenseDeckInfo[k].deck_id == req['target_deck_id']) {
 				deckIDPrimaryKey = tempDefenseDeckInfo[k].wizard_id.toString() + "_" + tempDefenseDeckInfo[k].uniqueMon1.toString() + "_" + tempDefenseDeckInfo[k].uniqueMon2.toString() + "_" + tempDefenseDeckInfo[k].uniqueMon3.toString();
+				deckwizardID = tempDefenseDeckInfo[k].wizard_id;
 			}
         }
         for ( var siegewar in resp['log_list']){
           for (var battleLog in resp['log_list'][siegewar].battle_log_list){
             //add each battle to deckLogLink
-            deckLogValues = {}
-            deckLogValues.deckIDPrimaryKey = deckIDPrimaryKey;
-            deckLogValues.wizard_id = resp['log_list'][siegewar].battle_log_list[battleLog].wizard_id;
-            deckLogValues.wizard_name = resp['log_list'][siegewar].battle_log_list[battleLog].wizard_name;
-            deckLogValues.opp_wizard_id = resp['log_list'][siegewar].battle_log_list[battleLog].opp_wizard_id;
-            deckLogValues.opp_wizard_name = resp['log_list'][siegewar].battle_log_list[battleLog].opp_wizard_name;
-            deckLogValues.win_lose = resp['log_list'][siegewar].battle_log_list[battleLog].win_lose;
-            deckLogValues.log_type = resp['log_list'][siegewar].battle_log_list[battleLog].log_type;
-            deckLogValues.log_timestamp = resp['log_list'][siegewar].battle_log_list[battleLog].log_timestamp;
-            deckLogValues.linkPrimaryKey = deckLogValues.wizard_id + "_" + deckLogValues.opp_wizard_id + "_" + deckLogValues.log_timestamp
-            deckLogLink.push(deckLogValues)
+			if (deckwizardID == resp['log_list'][siegewar].battle_log_list[battleLog].wizard_id) {
+				deckLogValues = {}
+				deckLogValues.deckIDPrimaryKey = deckIDPrimaryKey;
+				deckLogValues.wizard_id = resp['log_list'][siegewar].battle_log_list[battleLog].wizard_id;
+				deckLogValues.wizard_name = resp['log_list'][siegewar].battle_log_list[battleLog].wizard_name;
+				deckLogValues.opp_wizard_id = resp['log_list'][siegewar].battle_log_list[battleLog].opp_wizard_id;
+				deckLogValues.opp_wizard_name = resp['log_list'][siegewar].battle_log_list[battleLog].opp_wizard_name;
+				deckLogValues.win_lose = resp['log_list'][siegewar].battle_log_list[battleLog].win_lose;
+				deckLogValues.log_type = resp['log_list'][siegewar].battle_log_list[battleLog].log_type;
+				deckLogValues.log_timestamp = resp['log_list'][siegewar].battle_log_list[battleLog].log_timestamp;
+				deckLogValues.linkPrimaryKey = deckLogValues.wizard_id + "_" + deckLogValues.opp_wizard_id + "_" + deckLogValues.log_timestamp
+				deckLogLink.push(deckLogValues)
+			}
           }
         }
         sendDecks.command = "SWGTSiegeDeckHistoryLink";
