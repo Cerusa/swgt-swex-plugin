@@ -970,9 +970,13 @@ module.exports = {
       resp['command'] != 'VisitFriend' &&
       resp['command'] != 'GetGuildWarRanking' &&
       resp['command'] != 'GetGuildSiegeRankingInfo' &&
-	  resp['command'] != 'GetGuildMazeContributeList' &&
-	  resp['command'] != 'GetGuildMazeStatusInfo' &&
-	  resp['command'] != 'GetGuildMazeBattleLogByWizard' 
+	    resp['command'] != 'GetGuildMazeContributeList' &&
+	    resp['command'] != 'GetGuildMazeStatusInfo' &&
+	    resp['command'] != 'GetGuildMazeBattleLogByWizard' && 
+      resp['command'] != 'GetGuildSiegeMatchupInfo' && 
+      resp['command'] != 'GetGuildSiegeMatchupInfoForFinished' &&
+      resp['command'] != 'GetGuildSiegeBattleLog' && 
+      resp['command'] != 'GetGuildSiegeBattleLogByWizardId'
     ) {
       if ('tvalue' in resp) { delete resp['tvalue'] };
     }
