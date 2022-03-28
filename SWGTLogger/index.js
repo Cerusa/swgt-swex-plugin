@@ -2,7 +2,7 @@ const request = require('request');
 const fs = require('fs');
 const path = require('path');
 const pluginName = 'SWGTLogger';
-const pluginVersion = '2022-02-08_1313';
+const pluginVersion = '2022-03-28_1345';
 var wizardBattles = [];
 var sendBattles = [];
 var tempDefenseDeckInfo = [];
@@ -163,14 +163,19 @@ module.exports = {
         'runes',
         'artifacts',
         'deco_list',
-        'tvalue'
+        'tvalue',
+        'tzone',
+        'server_id',
+        'server_endpoint'
       ];
 
       //Purge all unused variables
       pruned = {}
       for (var i in requiredHubUserLoginElements) {
         //Deep copy so we can modify
-        pruned[requiredHubUserLoginElements[i]] = JSON.parse(JSON.stringify(resp[requiredHubUserLoginElements[i]]))
+        try {
+          pruned[requiredHubUserLoginElements[i]] = JSON.parse(JSON.stringify(resp[requiredHubUserLoginElements[i]]));
+        } catch (error) {}
       }
       //Move runes/artifact from monsters to inventory (and detach from monster id)
       for (var mon in pruned.unit_list) {
