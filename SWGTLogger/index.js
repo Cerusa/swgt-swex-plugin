@@ -2,7 +2,7 @@ const request = require('request');
 const fs = require('fs');
 const path = require('path');
 const pluginName = 'SWGTLogger';
-const pluginVersion = '2022-03-28_1345';
+const pluginVersion = '2022-06-07_2101';
 var wizardBattles = [];
 var sendBattles = [];
 var tempDefenseDeckInfo = [];
@@ -973,11 +973,19 @@ module.exports = {
     if (
       resp['command'] != 'HubUserLogin' &&
       resp['command'] != 'VisitFriend' &&
+
+      resp['command'] != 'GetGuildInfo' &&
+      resp['command'] != 'GetGuildInfoByName' &&
+      resp['command'] != 'GetGuildInfoForChat' &&
+
       resp['command'] != 'GetGuildWarRanking' &&
+
       resp['command'] != 'GetGuildSiegeRankingInfo' &&
 	    resp['command'] != 'GetGuildMazeContributeList' &&
 	    resp['command'] != 'GetGuildMazeStatusInfo' &&
 	    resp['command'] != 'GetGuildMazeBattleLogByWizard' && 
+
+      resp['command'] != 'GetGuildSiegeRankingInfo' && 
       resp['command'] != 'GetGuildSiegeMatchupInfo' && 
       resp['command'] != 'GetGuildSiegeMatchupInfoForFinished' &&
       resp['command'] != 'GetGuildSiegeBattleLog' && 
