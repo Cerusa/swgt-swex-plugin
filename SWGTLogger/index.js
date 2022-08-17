@@ -524,7 +524,7 @@ module.exports = {
 					if (wizardBattles[k].monsterIDMap?.[resp.unit_id_list[i][j]] !== undefined) {
 						counterUnit = wizardBattles[k].monsterIDMap[resp.unit_id_list[i][j]];
 					} else {
-						counterUnit = 100;
+						counterUnit = -99999;
 					}
 					battle.counter.units.push(counterUnit);
 					//Defense Mons
