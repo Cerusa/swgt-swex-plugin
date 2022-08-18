@@ -1204,7 +1204,7 @@ module.exports = {
       json: true,
       body: resp
     };
-
+	//proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `Upload to Webservice: ${resp['command']}` });
     request(options, (error, response) => {
       if (error) {
         proxy.log({ type: 'error', source: 'plugin', name: this.pluginName, message: `Error: ${error.message}` });
@@ -1230,6 +1230,7 @@ module.exports = {
       method: 'get',
       uri: endpoint
     };
+	//proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `API Version Check` });
 	  request(options, (error, response) => {
       if (error) {
         proxy.log({ type: 'error', source: 'plugin', name: this.pluginName, message: `Error: ${error.message}` });
@@ -1258,12 +1259,13 @@ module.exports = {
   checkSiteAPI(proxy, config){
 	  //check site api configuration settings
 	  if (!this.hasAPIEnabled(config, proxy)) {
-		  //proxy.log({ type: 'error', source: 'plugin', name: this.pluginName, message: `API Settings not yet configured.` });
+		  proxy.log({ type: 'error', source: 'plugin', name: this.pluginName, message: `API Settings not yet configured.` });
 		  return;
 	  }
   	resp = {};
 	  resp.command = "checkAPIKey";
-    var endpoint = "/api/guild/swgt/v1";
+    //var endpoint = "/api/guild/swgt/v1";
+	var endpoint = "/api/v1";
 
 	  let options = {
       method: 'post',
@@ -1271,7 +1273,7 @@ module.exports = {
       json: true,
       body: resp
     };
-
+	//proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `Check Site API settings` });
     request(options, (error, response) => {
       if (error) {
         proxy.log({ type: 'error', source: 'plugin', name: this.pluginName, message: `Failed to connect to ${config.Config.Plugins[pluginName].siteURL}` });
@@ -1280,11 +1282,11 @@ module.exports = {
 
       if (response.statusCode === 200) {
         proxy.log({ type: 'success', source: 'plugin', name: this.pluginName, message: `Successfully connected to ${config.Config.Plugins[pluginName].siteURL}` });
-		siteAPIResponse = response.body;
-		if ('messageType' in siteAPIResponse) {apiReference.messageType  = siteAPIResponse.messageType};
-		if ('enabledGuilds' in siteAPIResponse) {apiReference.enabledWizards = siteAPIResponse.enabledGuilds}; 
+		//siteAPIResponse = response.body;
+		//if ('messageType' in siteAPIResponse) {apiReference.messageType  = siteAPIResponse.messageType};
+		//if ('enabledGuilds' in siteAPIResponse) {apiReference.enabledGuilds = siteAPIResponse.enabledGuilds}; 
       
-		proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `apiReference: ${apiReference.messageType}` });
+		//proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `apiReference: ${apiReference.messageType}` });
       } else if ( response.statusCode === 401) {
 		    proxy.log({
           type: 'error',
