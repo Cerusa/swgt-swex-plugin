@@ -409,6 +409,7 @@ module.exports = {
           wizardInfo.sendBattles = [];
           wizardBattles.push(wizardInfo);
         }
+
       } catch (e) {
         proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `${resp['command']}-${e.message}` });
       }
@@ -434,6 +435,8 @@ module.exports = {
           wizardInfo.sendBattles = [];
           wizardBattles.push(wizardInfo);
         }
+		
+		
       } catch (e) {
         proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `${resp['command']}-${e.message}` });
       }
@@ -456,6 +459,7 @@ module.exports = {
             for (var wizard in resp['wizard_info_list']){
               if (resp['wizard_info_list'][wizard].wizard_id == req['wizard_id']){
                 wizardBattles[k].guild_id = resp['wizard_info_list'][wizard].guild_id;
+				//TODO: add opponent guild id object to reference guild names
               }		
             }
             wizardBattles[k].sendBattles = [];
@@ -475,6 +479,8 @@ module.exports = {
           }
           wizardInfo.sendBattles = [];
           wizardBattles.push(wizardInfo);
+		  
+		  
         }
       } catch (e) {
         proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `${resp['command']}-${e.message}` });
@@ -486,12 +492,14 @@ module.exports = {
 		k=0;
 		//match up wizard id and push the battle
         for (var kindex = wizardBattles.length - 1; kindex >= 0; kindex--) {
-            if (wizardBattles[k].wizard_id == req['wizard_id']) {
-				proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `Test Server GW Start-Found Index- ${resp['command']}` });
+            if (wizardBattles[kindex].wizard_id == req['wizard_id']) {
+				//proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `Test Server GW Start-Found Index- ${resp['command']}` });
 				k = kindex;
-				kindex=0;
+				kindex=-1;
 			}
+			//if (kindex == -1){break};
         }
+		
         for (var i = 0; i < 5; i++) {
 			battle = {}
 			battle.command = "3MDCBattleLog";
@@ -536,9 +544,9 @@ module.exports = {
 			}
 
             wizardBattles[k].sendBattles.push(battle);
-			sendResp = battle;
-			this.writeToFile(proxy, req, sendResp,'3MDCServerGWStart-'+i);
-			proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `Test Server GW Start ${resp['command']}` });
+			//sendResp = battle;
+			//this.writeToFile(proxy, req, sendResp,'3MDCServerGWStart-'+i);
+			//proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `Test Server GW Start ${resp['command']}` });
         }
       } catch (e) {
         proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `${resp['command']}-${e.message}` });
@@ -555,7 +563,7 @@ module.exports = {
 		battle.battleStartTime = resp.tvalue;
         battle.defense = {}
         battle.counter = {}
-
+		//TODO: add opp guild id/guild name, opp_id and opp_name---from prebuilt objects on siegebasedefenseunitlist and matchupinfo
         //prepare the arrays
         units = [];
         battle.defense.units = [];
@@ -584,7 +592,7 @@ module.exports = {
         proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `${resp['command']}-${e.message}` });
       }
     }
-	if (resp['command'] == 'BattleServerGuildWarRoundResult' || resp['command'] == 'BattleServerGuildWarResultVirtual') {
+	if (resp['command'] == 'BattleServerGuildWarRoundResult' ) {
       //store battle start time for second battle and end time for first battle
 	  var j = req['round_id']-1;
       try {//Handle out of order processing
@@ -593,8 +601,9 @@ module.exports = {
           for (var k = wizardBattles[wizard].sendBattles.length - 1; k >= 0; k--) {
             if (wizardBattles[wizard].sendBattles[k].wizard_id == req['wizard_id']) {
 				//if (j==1){wizardBattles[wizard].sendBattles[k].battleStartTime = resp.tvalue};
-				//proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `Server GW Battle Round Middle Test ${j} ${k}` });
+				
 				if (j==k){
+					proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `Server GW Battle Round ${j+1} Saved` });
 					wizardBattles[wizard].sendBattles[k].battleDateTime = resp.tvalue;
 					//sendResp = wizardBattles[wizard].sendBattles[k];
 					if (j<4){wizardBattles[wizard].sendBattles[k+1].battleStartTime = resp.tvalue};
@@ -613,7 +622,7 @@ module.exports = {
         j = 0;
       }
     }
-    if (req['command'] == 'BattleServerGuildWarResult') {
+    if (req['command'] == 'BattleServerGuildWarResult' || resp['command'] == 'BattleServerGuildWarResultVirtual') {
       var j = 5;
       try {//Handle out of order processing
         for (var wizard in wizardBattles) {
@@ -621,8 +630,7 @@ module.exports = {
           for (var k = wizardBattles[wizard].sendBattles.length - 1; k >= 0; k--) {
 			  //proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `Server GW Battle End Loop ${k} ${req['win_lose_list'][j]}` });
             if (wizardBattles[wizard].sendBattles[k].wizard_id == req['wizard_id']) {
-				//sendResp = wizardBattles[wizard];
-				//this.writeToFile(proxy, req, sendResp,'3MDCSendBattlesTest-');
+
 				
 				jstr=j.toString();
 				wizardBattles[wizard].sendBattles[k].win_lose = req['win_lose_list'][jstr];
@@ -638,7 +646,7 @@ module.exports = {
 				 this.writeToFile(proxy, req, sendResp,'3MDC-'+k);
 				 if (sendResp.defense.units.length == 3 && sendResp.counter.units.length > 0 && sendResp.battleRank >= 1000) {
 					this.uploadToWebService(proxy, config, req, sendResp,'3MDC');
-					proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `Server GW Battle End Processed ${k}` });
+					proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `Server GW Battle Round End Processed ${k+1}` });
 				}
             }
 			//proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `Server GW Battle End Test ${k}` });
@@ -663,6 +671,7 @@ module.exports = {
             if (wizardBattles[wizard].sendBattles[k].battleKey == req['battle_key']) {
               wizardBattles[wizard].sendBattles[k].win_lose = req['win_lose'];
               wizardBattles[wizard].sendBattles[k].battleDateTime = resp.tvalue - j;
+			  wizardBattles[wizard].sendBattles[k].swex_server_id = resp['server_id'];
               j++;
               sendResp = wizardBattles[wizard].sendBattles[k];
               //remove battle from the sendBattlesList
@@ -756,6 +765,7 @@ module.exports = {
             if (wizardBattles[wizard].sendBattles[k].battleKey == resp.replay_info.battle_key) {
               wizardBattles[wizard].sendBattles[k].win_lose = resp.replay_info.win_lose;
               wizardBattles[wizard].sendBattles[k].battleDateTime = resp.tvalue - j;
+			  wizardBattles[wizard].sendBattles[k].swex_server_id = resp['server_id'];
               j++;
               sendResp = wizardBattles[wizard].sendBattles[k];
               //remove battle from the sendBattlesList
