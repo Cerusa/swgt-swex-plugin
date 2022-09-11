@@ -2,7 +2,7 @@ const request = require('request');
 const fs = require('fs');
 const path = require('path');
 const pluginName = 'SWGTLogger';
-const pluginVersion = '2022-09-10_1235';
+const pluginVersion = '2022-09-11_1610';
 var wizardBattles = [];
 var sendBattles = [];
 var tempDefenseDeckInfo = [];
@@ -1023,7 +1023,7 @@ module.exports = {
           type: 'error',
           source: 'plugin',
           name: this.pluginName,
-          message: `Upload failed: Server responded with code: ${response.statusCode} = ${response.body}`
+          message: `${command} upload failed: Server responded with code: ${response.statusCode} = ${response.body}`
         });
 
         //Remove from cache if rate limited
