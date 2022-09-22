@@ -136,7 +136,7 @@ module.exports = {
     for (var commandIndex in listenToSWGTCommands) {
       var command = listenToSWGTCommands[commandIndex];
       proxy.on(command, (req, resp) => {
-        this.processRequest(command, proxy, config, req, resp, cache);
+        this.processRequest(command, proxy, config, req, resp, cacheP);
       });
     }
     //Attach 3MDC events if enabled
@@ -144,7 +144,7 @@ module.exports = {
       for (var commandIndex in listenTo3MDCCommands) {
         var command = listenTo3MDCCommands[commandIndex];
         proxy.on(command, (req, resp) => {
-          this.process3MDCRequest(command, proxy, config, req, resp, cache);
+          this.process3MDCRequest(command, proxy, config, req, resp, cacheP);
         });
       }
     }
@@ -154,7 +154,7 @@ module.exports = {
       for (var commandIndex in listenToSWGTHistoryCommands) {
         var command = listenToSWGTHistoryCommands[commandIndex];
         proxy.on(command, (req, resp) => {
-          this.processSWGTHistoryRequest(command, proxy, config, req, resp, cache);
+          this.processSWGTHistoryRequest(command, proxy, config, req, resp, cacheP);
         });
       }
     }
@@ -193,7 +193,7 @@ module.exports = {
 		}
 	return false;
   },
-  processRequest(command, proxy, config, req, resp, cache) {
+  processRequest(command, proxy, config, req, resp, cacheP) {
     if (command == "HubUserLogin")
       if (!config.Config.Plugins[pluginName].sendCharacterJSON) return;
 
@@ -362,7 +362,7 @@ module.exports = {
 
         resp2 = packetInfo;
         this.writeToFile(proxy, req, resp2, 'SWGT');
-        if (this.hasCacheMatch(proxy, config, req, resp2, cache)) return;
+        if (this.hasCacheMatch(proxy, config, req, resp2, cacheP)) return;
         this.uploadToWebService(proxy, config, req, resp2, 'SWGT');
       } catch (e) {
         proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `${resp2['command']}-${e.message}` });
@@ -370,12 +370,12 @@ module.exports = {
     }
 
     this.writeToFile(proxy, req, resp, 'SWGT');
-    if (this.hasCacheMatch(proxy, config, req, resp, cache)) return;
+    if (this.hasCacheMatch(proxy, config, req, resp, cacheP)) return;
     this.uploadToWebService(proxy, config, req, resp, 'SWGT');
 
 
   },
-  process3MDCRequest(command, proxy, config, req, resp, cache) {
+  process3MDCRequest(command, proxy, config, req, resp, cacheP) {
     if (!config.Config.Plugins[pluginName].uploadBattles) return false;
 
     if (resp['command'] == 'GetServerGuildWarMatchInfo') {
@@ -1037,7 +1037,7 @@ module.exports = {
 
   },
 
-  processSWGTHistoryRequest(command, proxy, config, req, resp, cache) {
+  processSWGTHistoryRequest(command, proxy, config, req, resp, cacheP) {
     //Populate the Defense_Deck Table
     if (resp['command'] == 'GetGuildSiegeBaseDefenseUnitList' || resp['command'] == 'GetGuildSiegeBaseDefenseUnitListPreset' || resp['command'] == 'GetGuildSiegeDefenseDeckByWizardId') {
       //If wizard id and rating doesn't exist in wizardBattles[] then push to it
@@ -1089,7 +1089,7 @@ module.exports = {
         sendDecks.deck_units = tempDefenseDeckInfo;
         sendResp = sendDecks;
         this.writeToFile(proxy, req, sendResp, 'SWGT2-');
-        if (this.hasCacheMatch(proxy, config, req, sendResp, cache)) return;
+        if (this.hasCacheMatch(proxy, config, req, sendResp, cacheP)) return;
         this.uploadToWebService(proxy, config, req, sendResp, 'SWGT');
       } catch (e) {
         proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `${resp['command']}-${e.message}` });
@@ -1136,7 +1136,7 @@ module.exports = {
         sendDecks.deck_log_history = deckLogLink;
         sendResp = sendDecks;
         this.writeToFile(proxy, req, sendResp, 'SWGT3-');
-        if (this.hasCacheMatch(proxy, config, req, sendResp, cache)) return;
+        if (this.hasCacheMatch(proxy, config, req, sendResp, cacheP)) return;
         this.uploadToWebService(proxy, config, req, sendResp, 'SWGT');
       } catch (e) {
         proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `${resp['command']}-${e.message}` });
