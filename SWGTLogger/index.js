@@ -8,7 +8,13 @@ var sendBattles = [];
 var tempDefenseDeckInfo = [];
 var observerDefenseInfo = [];
 var observerAttackerList = [];
-
+var localAPIkey = '';
+var apiReference = {
+	messageType:'OK',
+	enabledGuilds:[],
+	enabledWizards:[]//TODO:Limit entries based on return guild---will need wizardID-Guild Map
+};  
+var monsterIDMap = {};
 module.exports = {
   defaultConfig: {
     enabled: true,
@@ -34,7 +40,17 @@ module.exports = {
     'Enable battle uploading to automatically log defenses and counters.',
   init(proxy, config) {
     cache = {};
-
+	cacheP = {};
+	cachePDuration = {};
+	cachePTimerSettings= [
+		{command:'GetGuildInfo', timer:60000},
+		{command:'GetGuildWarRanking',timer:300000},
+		{command:'GetGuildWarMatchLog', timer:60000},
+		{command:'GetGuildSiegeMatchupInfo', timer:60000},
+		{command:'GetGuildSiegeRankingInfo', timer:300000},
+		{command:'GetGuildMazeStatusInfo', timer:300000},
+	];
+	
     var listenToSWGTCommands = [
       //Character JSON and Guild Member List
       'HubUserLogin',
@@ -44,7 +60,7 @@ module.exports = {
       'GetGuildInfo',
       'GetGuildInfoByName',
       'GetGuildInfoForChat',
-      `GetGuildDataAll`,
+      'GetGuildDataAll',
 
       //Siege
       'GetGuildSiegeBattleLogByWizardId',
@@ -68,33 +84,46 @@ module.exports = {
       'GetServerGuildWarMatchInfo',
       'GetServerGuildWarRanking',
       'GetServerGuildWarBattleLogByWizard',
+	  //'GetServerGuildWarDefenseDeckList',
+	  //'GetServerGuildWarBaseDeckList',
+	  //'GetServerGuildWarBaseInfoListForOppView',
+	  //'GetServerGuildWarContributeList',
 
       //Monster Subjugation
       'getGuildBossBattleInfo',
       'getGuildBossBattleLogByWizard',
       'getGuildBossContributeList',
-      'getGuildBossRankingList'
+      'getGuildBossRankingList',
+	  
+	  //Rune Upgrades
+	  'UpgradeRune',
+	  'Amplify_Rune_v2',
+	  'Convert_Rune_v2',
+	  'Confirm_Rune'
     ];
-
     var listenTo3MDCCommands = [
-      //Guild War
-      'BattleGuildWarStart', //offense and defense mons
-      'BattleGuildWarResult', //win/loss
-      'GetGuildWarMatchupInfo', //rating_id
+		//Server Guild War
+		'GetServerGuildWarMatchInfo',
+		'GetServerGuildWarBaseDeckList',
+		'BattleServerGuildWarStart',
+		'BattleServerGuildWarRoundResult',
+		'BattleServerGuildWarResult',
+		'BattleServerGuildWarStartVirtual',
+		'BattleServerGuildWarResultVirtual',
+		
+		//Siege
+		'BattleGuildSiegeStart_v2',
+		'BattleGuildSiegeResult',
+		'GetGuildSiegeMatchupInfo',
 
-      //Siege
-      'BattleGuildSiegeStart_v2',
-      'BattleGuildSiegeResult',
-      'GetGuildSiegeMatchupInfo',
+		//TestingSiegeReplays
+		'GetGuildSiegeRankingInfo',//rating_id
+		'SetGuildSiegeBattleReplayData',
 
-      //TestingSiegeReplays
-      'GetGuildSiegeRankingInfo',//rating_id
-      'SetGuildSiegeBattleReplayData',
-
-      //AttackViewerInstance
-      'GetGuildSiegeBaseDefenseUnitList',
-      'GetGuildSiegeAttackUnitListInBattle',
-      'GetGuildSiegeBattleLog'
+		//AttackViewerInstance
+		'GetGuildSiegeBaseDefenseUnitList',
+		'GetGuildSiegeAttackUnitListInBattle',
+		'GetGuildSiegeBattleLog'
     ];
 
     var listenToSWGTHistoryCommands = [
@@ -113,7 +142,7 @@ module.exports = {
     for (var commandIndex in listenToSWGTCommands) {
       var command = listenToSWGTCommands[commandIndex];
       proxy.on(command, (req, resp) => {
-        this.processRequest(command, proxy, config, req, resp, cache);
+        this.processRequest(command, proxy, config, req, resp, cacheP);
       });
     }
     //Attach 3MDC events if enabled
@@ -121,7 +150,7 @@ module.exports = {
       for (var commandIndex in listenTo3MDCCommands) {
         var command = listenTo3MDCCommands[commandIndex];
         proxy.on(command, (req, resp) => {
-          this.process3MDCRequest(command, proxy, config, req, resp, cache);
+          this.process3MDCRequest(command, proxy, config, req, resp, cacheP);
         });
       }
     }
@@ -131,7 +160,7 @@ module.exports = {
       for (var commandIndex in listenToSWGTHistoryCommands) {
         var command = listenToSWGTHistoryCommands[commandIndex];
         proxy.on(command, (req, resp) => {
-          this.processSWGTHistoryRequest(command, proxy, config, req, resp, cache);
+          this.processSWGTHistoryRequest(command, proxy, config, req, resp, cacheP);
         });
       }
     }
@@ -140,26 +169,39 @@ module.exports = {
     this.checkVersion(proxy);
     this.checkSiteAPI(proxy, config);
   },
-  hasAPISettings(config, proxy) {
-    if (!config.Config.Plugins[pluginName].enabled) return false;
+  hasAPIEnabled(config,proxy){
+	if (!config.Config.Plugins[pluginName].enabled) return false;
 
     if (!config.Config.Plugins[pluginName].apiKey) {
       proxy.log({ type: 'error', source: 'plugin', name: this.pluginName, message: 'Missing API key.' });
-      return false;
+      return false;		   
     }
-    if (!config.Config.Plugins[pluginName].siteURL) {
-      proxy.log({ type: 'error', source: 'plugin', name: this.pluginName, message: 'Missing Site URL.' });
-      return false;
-    };
-    if (!config.Config.Plugins[pluginName].siteURL.includes("swgt.io")) {
-      proxy.log({ type: 'error', source: 'plugin', name: this.pluginName, message: 'Invalid Site URL.' });
-      return false;
-    }
-    return true;
+	return true;
   },
-  processRequest(command, proxy, config, req, resp, cache) {
-    if (command == "HubUserLogin")
-      if (!config.Config.Plugins[pluginName].sendCharacterJSON) return;
+  
+  hasAPISettings(config, proxy) {
+    if (localAPIkey != config.Config.Plugins[pluginName].apiKey){
+		this.checkSiteAPI(proxy,config);
+		localAPIkey = config.Config.Plugins[pluginName].apiKey;
+		
+		}
+	if (apiReference.messageType==='OK') {
+			//proxy.log({ type: 'DEBUG', source: 'plugin', name: this.pluginName, message: 'API Key Good' });
+			return true;
+		}
+	if (apiReference.messageType==='Warning') {
+			proxy.log({ type: 'warning', source: 'plugin', name: this.pluginName, message: 'API Key near expiration' });
+			return true;
+		}
+	if (apiReference.messageType==='Error') {
+			proxy.log({ type: 'error', source: 'plugin', name: this.pluginName, message: 'API Key Incorrect or Expired.' });
+		  return false;
+		}
+	return false;
+  },
+  processRequest(command, proxy, config, req, resp, cacheP) {
+    //if (command == "HubUserLogin")
+    //  if (!config.Config.Plugins[pluginName].sendCharacterJSON) return;
 
     //Clean HubUserLogin resp
     if (resp['command'] == 'HubUserLogin') {
@@ -176,8 +218,78 @@ module.exports = {
         'server_id',
         'server_endpoint'
       ];
-
+	  var wizardInfoRequiredElements = [
+		'wizard_id',
+		'wizard_name'
+	  ];
+	  var guildRequiredElements = [
+		'guild_info',
+		'guild_members'
+	  ];
+	  var guildInfoRequiredElements = [
+		'guild_id',
+		'name'
+	  ];
+	  var unitListRequiredElements = [
+		'unit_id',
+		'wizard_id',
+		'unit_master_id',
+		'unit_level',
+		'class',
+		'runes',
+		'artifacts',
+		'create_time',
+		'homunculus',
+		'homunculus_name',
+		'skills'
+	  ];
+	  var decoListRequiredElements = [
+		'wizard_id',
+		'deco_id',
+		'master_id',
+		'level'
+	  ];
+		//Map wizardMonsters to wizard battles for server guild war
+		try {
+        wizardInfo = {}
+        wizardFound = false;
+        for (var k = wizardBattles.length - 1; k >= 0; k--) {
+          if (wizardBattles[k].wizard_id == resp['wizard_info']['wizard_id']) {
+			  wizardBattles[k].sendBattles = [];
+			  wizardFound = true;
+			  wizardBattles[k].monsterIDMap = {};
+			  proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `HubUserLogin:Wizard Found-${wizardFound}-WB:${wizardBattles[k].wizard_id}-Resp:${resp['wizard_info']['wizard_id']}` });
+			for (var mon in resp.unit_list) {
+			  wizardBattles[k].monsterIDMap[resp.unit_list[mon].unit_id] = resp.unit_list[mon].unit_master_id;
+			}
+            
+          }
+        }
+		proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `HubUserLogin:Wizard Found-${wizardFound}-${resp['wizard_info']['wizard_id']}` });
+        if (!wizardFound) {
+          wizardInfo.wizard_id = resp['wizard_info']['wizard_id'];
+		  wizardInfo.monsterIDMap = {};
+		  for (var mon in resp.unit_list) {
+			  wizardInfo.monsterIDMap[resp.unit_list[mon].unit_id] = resp.unit_list[mon].unit_master_id;
+			  wizardInfo.sendBattles = [];
+		  }
+          wizardBattles.push(wizardInfo);
+        }
+		sendResp = wizardBattles;
+		this.writeToFile(proxy, req, sendResp,'3MDCMonsterMap-');
+		proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `Map Monsters ${resp['command']}` });
+      } catch (e) {
+        proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `${resp['command']}-Failed Monster Mapping-${e.message}` });
+      }
       //Purge all unused variables
+		var i = apiReference.enabledGuilds.length;
+			  while (i--) {
+				if (apiReference.enabledGuilds[i] === resp.guild_info.guild_id) {
+				  if (!(wizardid in apiReference.enabledWizards)) {
+					apiReference.enabledWizards.push(wizardid)
+					}
+				}
+			  }
       pruned = {}
       for (var i in requiredHubUserLoginElements) {
         //Deep copy so we can modify
@@ -218,7 +330,16 @@ module.exports = {
         for (var wizard in resp.wizard_info_list) {
           if (wizardid == resp.wizard_info_list[wizard].wizard_id) {
             blueGuildID = resp.wizard_info_list[wizard].guild_id;
-
+			//apply enabled guild to wizard id if blueGuildID in apiReference.EnabledGuilds
+			var i = apiReference.enabledGuilds.length;
+			  while (i--) {
+				if (apiReference.enabledGuilds[i] === blueGuildID) {
+				  if (!(wizardid in apiReference.enabledWizards)) {
+					apiReference.enabledWizards.push(wizardid)
+					}
+				}
+			  }
+			
           }
         }
 
@@ -268,23 +389,52 @@ module.exports = {
 
         resp2 = packetInfo;
         this.writeToFile(proxy, req, resp2, 'SWGT');
-        if (this.hasCacheMatch(proxy, config, req, resp2, cache)) return;
+        if (this.hasCacheMatch(proxy, config, req, resp2, cacheP)) return;
         this.uploadToWebService(proxy, config, req, resp2, 'SWGT');
       } catch (e) {
         proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `${resp2['command']}-${e.message}` });
       }
     }
 
-    this.writeToFile(proxy, req, resp, 'SWGT');
-    if (this.hasCacheMatch(proxy, config, req, resp, cache)) return;
+	if (resp['command'] == 'GetGuildInfo') {
+		var i = apiReference.enabledGuilds.length;
+			  while (i--) {
+				if (apiReference.enabledGuilds[i] === resp.guild.guild_info.guild_id) {
+				  if (!(wizardid in apiReference.enabledWizards)) {
+					apiReference.enabledWizards.push(wizardid)
+					}
+				}
+			  }
+	}
+	if (resp['command'] == 'GetServerGuildWarMatchInfo') {
+		var i = apiReference.enabledGuilds.length;
+			  while (i--) {
+				if (apiReference.enabledGuilds[i] === resp.server_guildwar_match_info.guild_id) {
+				  if (!(wizardid in apiReference.enabledWizards)) {
+					apiReference.enabledWizards.push(wizardid)
+					}
+				}
+			  }
+	}
+    if (resp['command'] == 'UpgradeRune') {
+		const originalLevel = req.upgrade_curr;
+		const newLevel = resp.rune.upgrade_curr;
+
+		if (newLevel <= originalLevel) {
+		  return;
+		}
+	}
+	
+	this.writeToFile(proxy, req, resp, 'SWGT');
+    if (this.hasCacheMatch(proxy, config, req, resp, cacheP)) return;
     this.uploadToWebService(proxy, config, req, resp, 'SWGT');
 
 
   },
-  process3MDCRequest(command, proxy, config, req, resp, cache) {
+  process3MDCRequest(command, proxy, config, req, resp, cacheP) {
     if (!config.Config.Plugins[pluginName].uploadBattles) return false;
 
-    if (resp['command'] == 'GetGuildWarMatchupInfo') {
+    if (resp['command'] == 'GetServerGuildWarMatchInfo') {
       //If wizard id and rating doesn't exist in wizardBattles[] then push to it
       try {
         wizardInfo = {}
@@ -292,19 +442,24 @@ module.exports = {
         for (var k = wizardBattles.length - 1; k >= 0; k--) {
           if (wizardBattles[k].wizard_id == req['wizard_id']) {
             //update rating id
-            wizardBattles[k].guild_rating_id = resp['guildwar_match_info']['guild_rating_id'];
-            wizardBattles[k].guild_id = resp['guildwar_match_info']['guild_id'];
+            wizardBattles[k].guild_rating_id = resp['server_guildwar_match_info']['match_rating_id'];
+			wizardBattles[k].guild_id = resp['server_guildwar_match_info']['guild_id'];
+			wizardBattles[k].guild_name = resp['server_guildwar_match_info']['guild_name'];
+			wizardBattles[k].opp_guild_name = resp['opp_guild_match_info']['guild_name'];
             wizardBattles[k].sendBattles = [];
             wizardFound = true;
           }
         }
         if (!wizardFound) {
           wizardInfo.wizard_id = req['wizard_id'];
-          wizardInfo.guild_rating_id = resp['guildwar_match_info']['guild_rating_id'];
-          wizardInfo.guild_id = resp['guildwar_match_info']['guild_id'];
+		  wizardInfo.guild_name = resp['server_guildwar_match_info']['guild_name'];
+          wizardInfo.guild_rating_id = resp['server_guildwar_match_info']['match_rating_id'];
+		  wizardInfo.guild_id = resp['server_guildwar_match_info']['guild_id'];
+		  wizardInfo.opp_guild_name = resp['opp_guild_match_info']['guild_name'];
           wizardInfo.sendBattles = [];
           wizardBattles.push(wizardInfo);
         }
+
       } catch (e) {
         proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `${resp['command']}-${e.message}` });
       }
@@ -352,12 +507,15 @@ module.exports = {
             for (var wizard in resp['wizard_info_list']) {
               if (resp['wizard_info_list'][wizard].wizard_id == req['wizard_id']) {
                 wizardBattles[k].guild_id = resp['wizard_info_list'][wizard].guild_id;
+				//TODO: add opponent guild id object to reference guild names												 
               }
             }
+			
             wizardBattles[k].sendBattles = [];
             wizardFound = true;
           }
         }
+		proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `GGSMI:Wizard Found-${wizardFound}` });
         if (!wizardFound) {
           wizardInfo.wizard_id = req['wizard_id'];
           wizardInfo.siege_rating_id = resp['match_info']['rating_id'];
@@ -372,46 +530,76 @@ module.exports = {
           wizardInfo.sendBattles = [];
           wizardBattles.push(wizardInfo);
         }
+		
+		sendResp = wizardBattles;
+		this.writeToFile(proxy, req, sendResp,'WizardBattles-');
       } catch (e) {
         proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `${resp['command']}-${e.message}` });
       }
     }
-    if (resp['command'] == 'BattleGuildWarStart') {
+    if (resp['command'] == 'BattleServerGuildWarStart' || resp['command'] == 'BattleServerGuildWarStartVirtual') {
       //Store only the information needed for transfer
       try {
-        for (var i = 0; i < 2; i++) {
-          battle = {}
-          battle.command = "3MDCBattleLog";
-          battle.battleType = "GuildWar";
-          battle.wizard_id = resp.wizard_info.wizard_id;
-          battle.wizard_name = resp.wizard_info.wizard_name;
-          battle.battleKey = resp.battle_key;
-          battle.defense = {}
-          battle.counter = {}
+		k=0;
+		//match up wizard id and push the battle
+        for (var kindex = wizardBattles.length - 1; kindex >= 0; kindex--) {
+            if (wizardBattles[kindex].wizard_id == req['wizard_id']) {
+				//proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `Test Server GW Start-Found Index- ${resp['command']}` });
+				k = kindex;
+				kindex=-1;
+			}
+			//if (kindex == -1){break};
+        }
+		
+        for (var i = 0; i < 5; i++) {
+			battle = {}
+			battle.command = "3MDCBattleLog";
+			battle.battleType = "WorldGuildBattle";
+			battle.wizard_id = resp.wizard_info.wizard_id;
+			battle.wizard_name = resp.wizard_info.wizard_name;
+			battle.battleKey = resp.battle_key;
+			battle.battleStartTime = resp.tvalue;
+			battle.defense = {}
+			battle.counter = {}
+			battle.opp_guild_id = resp.target_base_info.guild_id;
+			battle.opp_wizard_id = resp.target_base_info.wizard_id;
+			battle.opp_wizard_name = resp.target_base_info.wizard_name;
+			battle.battleRank = wizardBattles[k].guild_rating_id;
+			battle.guild_id = wizardBattles[k].guild_id;
+			battle.opp_guild_name = wizardBattles[k].opp_guild_name;
+			battle.guild_name = wizardBattles[k].guild_name;
 
-          //prepare the arrays
-          units = [];
-          battle.defense.units = [];
-          battle.counter.units = [];
-          battle.counter.unique = [];
-          for (var j = 0; j < 3; j++) {
-            try {
-              //Offense Mons
-              battle.counter.units.push(resp.guildwar_my_unit_list[i][j].unit_master_id);
-              battle.counter.unique.push(resp.guildwar_my_unit_list[i][j].unit_id);
-              //Defense Mons
-              battle.defense.units.push(resp.guildwar_opp_unit_list[i][j].unit_info.unit_master_id);
-            } catch (e) { }
-          }
-          //match up wizard id and push the battle
-          for (var k = wizardBattles.length - 1; k >= 0; k--) {
-            if (wizardBattles[k].wizard_id == req['wizard_id']) {
-              //store battle in array
-              battle.battleRank = wizardBattles[k].guild_rating_id;
-              battle.guild_id = wizardBattles[k].guild_id;
-              wizardBattles[k].sendBattles.push(battle);
-            }
-          }
+			//prepare the arrays
+			units = [];
+			battle.defense.units = [];
+			battle.counter.units = [];
+			battle.counter.unique = [];
+			for (var j = 0; j < 3; j++) {
+				try {
+					//Offense Mons
+					//battle.counter.units.push(resp.unit_id_list[i][j].unit_master_id);//need to map unit id from hubuserlogin
+					battle.counter.unique.push(resp.unit_id_list[i][j]); //unique monster id ''
+					//proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `${resp.unit_id_list[i][j]}-Counter List-${i}-${j}-${wizardBattles[k].monsterIDMap?.[resp.unit_id_list[i][j]]}` });
+					if (wizardBattles[k].monsterIDMap?.[resp.unit_id_list[i][j]] !== undefined) {
+						counterUnit = wizardBattles[k].monsterIDMap[resp.unit_id_list[i][j]];
+					} else {
+						counterUnit = -99999;
+					}
+					battle.counter.units.push(counterUnit);
+					//Defense Mons
+					iDefense = (i + 1).toString();
+					battle.defense.units.push(resp.opp_unit_list[iDefense].unit_list[j].unit_info.unit_master_id);
+					} catch (e) {
+						//proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `${resp['command']}-Counter Prep-${e.message}` });
+				}
+			}
+
+            wizardBattles[k].sendBattles.push(battle);
+			//sendResp = battle;
+			//this.writeToFile(proxy, req, sendResp,'3MDCServerGWStart-'+i);
+			//proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `Test Server GW Start ${resp['command']}` });
+			 
+		   
         }
       } catch (e) {
         proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `${resp['command']}-${e.message}` });
@@ -425,9 +613,10 @@ module.exports = {
         battle.wizard_id = resp.wizard_info.wizard_id;
         battle.wizard_name = resp.wizard_info.wizard_name;
         battle.battleKey = resp.battle_key;
+		battle.battleStartTime = resp.tvalue;							   
         battle.defense = {}
         battle.counter = {}
-
+		//TODO: add opp guild id/guild name, opp_id and opp_name---from prebuilt objects on siegebasedefenseunitlist and matchupinfo
         //prepare the arrays
         units = [];
         battle.defense.units = [];
@@ -456,30 +645,34 @@ module.exports = {
         proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `${resp['command']}-${e.message}` });
       }
     }
-    if (req['command'] == 'BattleGuildWarResult') {
-      var j = 1;
+    if (resp['command'] == 'BattleServerGuildWarRoundResult' ) {
+      //store battle start time for second battle and end time for first battle
+	  var j = req['round_id']-1;
       try {//Handle out of order processing
         for (var wizard in wizardBattles) {
+		//proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `Server GW Battle Round Wizard Search ${wizard}` });
           for (var k = wizardBattles[wizard].sendBattles.length - 1; k >= 0; k--) {
-            if (wizardBattles[wizard].sendBattles[k].battleKey == req['battle_key']) {
-              wizardBattles[wizard].sendBattles[k].win_lose = req['win_lose_list'][j];
-              wizardBattles[wizard].sendBattles[k].battleDateTime = resp.tvalue - j;
-              j--;
-              sendResp = wizardBattles[wizard].sendBattles[k];
-              //remove battle from the sendBattlesList
-              wizardBattles[wizard].sendBattles.splice(k, 1);
-              //if result then add time and win/loss then send to webservice
-              if (sendResp.defense.units.length == 3 && sendResp.counter.units.length > 0 && sendResp.battleRank >= 4000) {
-                this.writeToFile(proxy, req, sendResp, '3MDC-' + k);
-
-                this.uploadToWebService(proxy, config, req, sendResp, '3MDC');
-                proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `GW Battle End Processed ${k}` });
-              }
+            if (wizardBattles[wizard].sendBattles[k].wizard_id == req['wizard_id']) {
+				//if (j==1){wizardBattles[wizard].sendBattles[k].battleStartTime = resp.tvalue};
+				
+				if (j==k){
+					proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `Server GW Battle Round ${j+1} Saved` });
+					wizardBattles[wizard].sendBattles[k].battleDateTime = resp.tvalue;
+				  
+					//sendResp = wizardBattles[wizard].sendBattles[k];
+													  
+					if (j<4){wizardBattles[wizard].sendBattles[k+1].battleStartTime = resp.tvalue};
+																			
+					//if (sendResp.defense.units.length == 3 && sendResp.counter.units.length > 0 && sendResp.battleRank >= 1000) {
+						//this.writeToFile(proxy, req, sendResp,'3MDCProgress-'+j);
+					//}
+				}
             }
           }
         }
+		//proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `Server GW Battle Round End Test ${j}` });
       } catch (e) {
-        proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `GW Battle End Error ${e.message}` });
+        proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `Server GW Battle Round End Error ${e.message}` });
       }
       if (j == 1) {
         j = 0;
@@ -495,6 +688,7 @@ module.exports = {
             if (wizardBattles[wizard].sendBattles[k].battleKey == req['battle_key']) {
               wizardBattles[wizard].sendBattles[k].win_lose = req['win_lose'];
               wizardBattles[wizard].sendBattles[k].battleDateTime = resp.tvalue - j;
+			  wizardBattles[wizard].sendBattles[k].swex_server_id = resp['server_id'];
               j++;
               sendResp = wizardBattles[wizard].sendBattles[k];
               //remove battle from the sendBattlesList
@@ -511,6 +705,45 @@ module.exports = {
         }
       } catch (e) {
         proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `Siege Battle End Error ${e.message}` });
+      }
+      if (j == 1) {
+        j = 0;
+      }
+    }
+	if (req['command'] == 'BattleServerGuildWarResult' || resp['command'] == 'BattleServerGuildWarResultVirtual') {
+      var j = 5;
+      try {//Handle out of order processing
+        for (var wizard in wizardBattles) {
+			
+          for (var k = wizardBattles[wizard].sendBattles.length - 1; k >= 0; k--) {
+			  //proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `Server GW Battle End Loop ${k} ${req['win_lose_list'][j]}` });
+            if (wizardBattles[wizard].sendBattles[k].wizard_id == req['wizard_id']) {
+
+				
+				jstr=j.toString();
+				wizardBattles[wizard].sendBattles[k].win_lose = req['win_lose_list'][jstr];
+				wizardBattles[wizard].sendBattles[k].attacker_server_id = resp['attack_info']['server_id'];
+				wizardBattles[wizard].sendBattles[k].opp_server_id = resp['target_base_info']['server_id'];
+				wizardBattles[wizard].sendBattles[k].swex_server_id = resp['server_id'];
+				if (j==5){wizardBattles[wizard].sendBattles[k].battleDateTime = resp.tvalue};
+				j--;
+				sendResp = wizardBattles[wizard].sendBattles[k];
+				 //remove battle from the sendBattlesList
+				 wizardBattles[wizard].sendBattles.splice(k, 1);
+				 //if result then add time and win/loss then send to webservice
+				 this.writeToFile(proxy, req, sendResp,'3MDC-'+k);
+				 if (sendResp.defense.units.length == 3 && sendResp.counter.units.length > 0 && sendResp.battleRank >= 1000) {
+					this.uploadToWebService(proxy, config, req, sendResp,'3MDC');
+					proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `Server GW Battle Round End Processed ${k+1}` });
+				}
+            }
+			//proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `Server GW Battle End Test ${k}` });
+          }
+        }
+		//proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `Server GW Battle End Test 2` });
+		
+      } catch (e) {
+        proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `Server GW Battle End Error ${e.message}` });
       }
       if (j == 1) {
         j = 0;
@@ -571,6 +804,7 @@ module.exports = {
             if (wizardBattles[k].wizard_id == req['wizard_id']) {
               battle.battleRank = wizardBattles[k].siege_rating_id;
               wizardBattles[k].sendBattles.push(battle);
+			  proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `Wizard Battle ${req['wizard_id']}: ${k}-${resp['command']}` });
             }
           }
         }
@@ -585,6 +819,8 @@ module.exports = {
           for (var k = wizardBattles[wizard].sendBattles.length - 1; k >= 0; k--) {
             //TODO: Handle multiple accounts with GW and Siege going at the same time. match battlekey and wizard. then do battles 1 and 2 and delete from the mon list.
             if (wizardBattles[wizard].sendBattles[k].battleKey == resp.replay_info.battle_key) {
+			  proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `Wizard ${wizard} Battle Key ${resp.replay_info.battle_key}: ${j}-${resp['command']}` });
+            
               wizardBattles[wizard].sendBattles[k].win_lose = resp.replay_info.win_lose;
               wizardBattles[wizard].sendBattles[k].battleDateTime = resp.tvalue - j;
               j++;
@@ -865,7 +1101,7 @@ module.exports = {
 
   },
 
-  processSWGTHistoryRequest(command, proxy, config, req, resp, cache) {
+  processSWGTHistoryRequest(command, proxy, config, req, resp, cacheP) {
     //Populate the Defense_Deck Table
     if (resp['command'] == 'GetGuildSiegeBaseDefenseUnitList' || resp['command'] == 'GetGuildSiegeBaseDefenseUnitListPreset' || resp['command'] == 'GetGuildSiegeDefenseDeckByWizardId') {
       //If wizard id and rating doesn't exist in wizardBattles[] then push to it
@@ -917,7 +1153,7 @@ module.exports = {
         sendDecks.deck_units = tempDefenseDeckInfo;
         sendResp = sendDecks;
         this.writeToFile(proxy, req, sendResp, 'SWGT2-');
-        if (this.hasCacheMatch(proxy, config, req, sendResp, cache)) return;
+        if (this.hasCacheMatch(proxy, config, req, sendResp, cacheP)) return;
         this.uploadToWebService(proxy, config, req, sendResp, 'SWGT');
       } catch (e) {
         proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `${resp['command']}-${e.message}` });
@@ -964,14 +1200,14 @@ module.exports = {
         sendDecks.deck_log_history = deckLogLink;
         sendResp = sendDecks;
         this.writeToFile(proxy, req, sendResp, 'SWGT3-');
-        if (this.hasCacheMatch(proxy, config, req, sendResp, cache)) return;
+        if (this.hasCacheMatch(proxy, config, req, sendResp, cacheP)) return;
         this.uploadToWebService(proxy, config, req, sendResp, 'SWGT');
       } catch (e) {
         proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `${resp['command']}-${e.message}` });
       }
     }
   },
-  hasCacheMatch(proxy, config, req, resp, cache) {
+  hasCacheMatch(proxy, config, req, resp, cacheP) {
     if (!this.hasAPISettings(config, proxy)) return false;
     var respCopy = JSON.parse(JSON.stringify(resp)); //Deep copy
     var action = respCopy['command'];
@@ -984,19 +1220,61 @@ module.exports = {
     if ('reqid' in respCopy) { delete respCopy['reqid'] };
 
     //proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: "Response: " + JSON.stringify(resp) });
-    if (!(action in cache)) {
+    if (!(action in cacheP)) {
       proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: "Not in cache:  " + action });
-    } else if (cache[action] == JSON.stringify(respCopy)) {
-      proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: "Matched cache:  " + action });
-      return true;
+														   
+																												  
+				  
     } else {
-      proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: "No match cache:  " + action });
+		var respTest = JSON.stringify(respCopy);
+		var cacheTest = JSON.stringify(cacheP[action]);
+		//this.writeToFile(proxy, req, respCopy,'SWGTPersonal-cacheResp-');
+		//this.writeToFile(proxy, req, cacheP[action],'SWGTPersonal-cacheAction-');
+		if (cacheTest===respTest){
+			proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: "Matched cache:  " + action });
+			return true;
+		} else {
+			proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: "No match cache:  " + action });
+		}
+		 for (var k in cachePTimerSettings){
+			if (cachePTimerSettings[k].command === action) {
+				var currentTime = new Date().getTime();
+				var timeDifference = currentTime - cachePDuration[action];
+				if (timeDifference < cachePTimerSettings[k].timer) {
+					timerMinutes = cachePTimerSettings[k].timer/60000;
+					proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: "Time between last packet < " + timerMinutes + " minute(s) for:  " + action });
+					return true;
+				}
+			}
+		} 
     };
-    cache[action] = JSON.stringify(respCopy);
+	
+    cacheP[action] = respCopy;
+	cachePDuration[action] = new Date().getTime();
+	
     return false;
+  },
+  verifyPacketToSend(proxy, config, req, resp) {
+    verifyCheck = true;
+    if ('wizard_id' in req) {
+      var i = apiReference.enabledWizards.length;
+      while (i--) {
+        if (apiReference.enabledWizards[i] === req.wizard_id) {
+          verifyCheck = true;
+          i = 0;
+        } else {
+          verifyCheck = false;
+        }
+      }
+    } else {
+      verifyCheck = true;
+    }
+    proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: "Verify Guild: " + `${verifyCheck}` + "-" + `${resp['command']}` });
+    return verifyCheck;
   },
   uploadToWebService(proxy, config, req, resp, endpointType) {
     if (!this.hasAPISettings(config, proxy)) return;
+	if (!this.verifyPacketToSend(proxy,config,req,resp)) return;
     const { command } = req;
 
     var endpoint = "/api/v1";
@@ -1009,7 +1287,7 @@ module.exports = {
       json: true,
       body: resp
     };
-
+	//proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `Upload to Webservice: ${resp['command']}` });
     request(options, (error, response) => {
       if (error) {
         proxy.log({ type: 'error', source: 'plugin', name: this.pluginName, message: `Error: ${error.message}` });
@@ -1030,7 +1308,7 @@ module.exports = {
         try {
           if(response.body.includes("updated in the past")){
             var action = resp['command'];
-            delete cache[action];
+            delete cacheP[action];
           }
         } catch (error) {}
       }
@@ -1043,6 +1321,9 @@ module.exports = {
       method: 'get',
       uri: endpoint
     };
+
+	//proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `API Version Check` });
+
     request(options, (error, response) => {
       if (error) {
         proxy.log({ type: 'error', source: 'plugin', name: this.pluginName, message: `Error: ${error.message}` });
@@ -1072,15 +1353,18 @@ module.exports = {
       }
     });
   },
+
+  
   checkSiteAPI(proxy, config) {
     //check site api configuration settings
-    if (!this.hasAPISettings(config, proxy)) {
+    if (!this.hasAPIEnabled(config, proxy)) {
       //proxy.log({ type: 'error', source: 'plugin', name: this.pluginName, message: `API Settings not yet configured.` });
       return;
     }
     resp = {};
     resp.command = "checkAPIKey";
-    var endpoint = "/api/v1";
+    //var endpoint = "/api/v1";
+	var endpoint = "/api/guild/swgt/v1";
 
     let options = {
       method: 'post',
@@ -1088,7 +1372,7 @@ module.exports = {
       json: true,
       body: resp
     };
-
+	//proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `Check Site API settings` });
     request(options, (error, response) => {
       if (error) {
         proxy.log({ type: 'error', source: 'plugin', name: this.pluginName, message: `Failed to connect to ${config.Config.Plugins[pluginName].siteURL}` });
@@ -1097,8 +1381,13 @@ module.exports = {
 
       if (response.statusCode === 200) {
         proxy.log({ type: 'success', source: 'plugin', name: this.pluginName, message: `Successfully connected to ${config.Config.Plugins[pluginName].siteURL}` });
+		siteAPIResponse = response.body;
+      if ('messageType' in siteAPIResponse) {apiReference.messageType  = siteAPIResponse.messageType};
+      if ('enabledGuilds' in siteAPIResponse) {apiReference.enabledGuilds = siteAPIResponse.enabledGuilds}; 
+		proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `Guild apiReference: ${apiReference.messageType}` });
       } else if (response.statusCode === 401) {
         proxy.log({
+
           type: 'error',
           source: 'plugin',
           name: this.pluginName,
