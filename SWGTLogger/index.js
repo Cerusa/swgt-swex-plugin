@@ -11,7 +11,8 @@ var observerAttackerList = [];
 var localAPIkey = '';
 var apiReference = {
 	messageType:'OK',
-	enabledGuilds:[] //TODO:Limit entries based on return guild---will need wizardID-Guild Map
+	enabledGuilds:[],
+	enabledWizards:[]//TODO:Limit entries based on return guild---will need wizardID-Guild Map
 };  
 var monsterIDMap = {};
 module.exports = {
@@ -92,9 +93,14 @@ module.exports = {
       'getGuildBossBattleInfo',
       'getGuildBossBattleLogByWizard',
       'getGuildBossContributeList',
-      'getGuildBossRankingList'
+      'getGuildBossRankingList',
+	  
+	  //Rune Upgrades
+	  'UpgradeRune',
+	  'Amplify_Rune_v2',
+	  'Convert_Rune_v2',
+	  'Confirm_Rune'
     ];
-
     var listenTo3MDCCommands = [
 		//Server Guild War
 		'GetServerGuildWarMatchInfo',
@@ -194,8 +200,8 @@ module.exports = {
 	return false;
   },
   processRequest(command, proxy, config, req, resp, cacheP) {
-    if (command == "HubUserLogin")
-      if (!config.Config.Plugins[pluginName].sendCharacterJSON) return;
+    //if (command == "HubUserLogin")
+    //  if (!config.Config.Plugins[pluginName].sendCharacterJSON) return;
 
     //Clean HubUserLogin resp
     if (resp['command'] == 'HubUserLogin') {
@@ -248,14 +254,18 @@ module.exports = {
         wizardInfo = {}
         wizardFound = false;
         for (var k = wizardBattles.length - 1; k >= 0; k--) {
-          if (wizardBattles[k].wizard_id == req['wizard_id']) {
+          if (wizardBattles[k].wizard_id == resp['wizard_info']['wizard_id']) {
+			  wizardBattles[k].sendBattles = [];
+			  wizardFound = true;
+			  wizardBattles[k].monsterIDMap = {};
+			  proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `HubUserLogin:Wizard Found-${wizardFound}-WB:${wizardBattles[k].wizard_id}-Resp:${resp['wizard_info']['wizard_id']}` });
 			for (var mon in resp.unit_list) {
 			  wizardBattles[k].monsterIDMap[resp.unit_list[mon].unit_id] = resp.unit_list[mon].unit_master_id;
-			  wizardBattles[k].sendBattles = [];
-		  }
-            wizardFound = true;
+			}
+            
           }
         }
+		proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `HubUserLogin:Wizard Found-${wizardFound}-${resp['wizard_info']['wizard_id']}` });
         if (!wizardFound) {
           wizardInfo.wizard_id = resp['wizard_info']['wizard_id'];
 		  wizardInfo.monsterIDMap = {};
@@ -265,13 +275,21 @@ module.exports = {
 		  }
           wizardBattles.push(wizardInfo);
         }
-		//sendResp = wizardBattles;
-		//this.writeToFile(proxy, req, sendResp,'3MDCMonsterMap-');
-		//proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `Test Map Monsters ${resp['command']}` });
+		sendResp = wizardBattles;
+		this.writeToFile(proxy, req, sendResp,'3MDCMonsterMap-');
+		proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `Map Monsters ${resp['command']}` });
       } catch (e) {
         proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `${resp['command']}-Failed Monster Mapping-${e.message}` });
       }
       //Purge all unused variables
+		var i = apiReference.enabledGuilds.length;
+			  while (i--) {
+				if (apiReference.enabledGuilds[i] === resp.guild_info.guild_id) {
+				  if (!(wizardid in apiReference.enabledWizards)) {
+					apiReference.enabledWizards.push(wizardid)
+					}
+				}
+			  }
       pruned = {}
       for (var i in requiredHubUserLoginElements) {
         //Deep copy so we can modify
@@ -312,7 +330,16 @@ module.exports = {
         for (var wizard in resp.wizard_info_list) {
           if (wizardid == resp.wizard_info_list[wizard].wizard_id) {
             blueGuildID = resp.wizard_info_list[wizard].guild_id;
-
+			//apply enabled guild to wizard id if blueGuildID in apiReference.EnabledGuilds
+			var i = apiReference.enabledGuilds.length;
+			  while (i--) {
+				if (apiReference.enabledGuilds[i] === blueGuildID) {
+				  if (!(wizardid in apiReference.enabledWizards)) {
+					apiReference.enabledWizards.push(wizardid)
+					}
+				}
+			  }
+			
           }
         }
 
@@ -369,7 +396,36 @@ module.exports = {
       }
     }
 
-    this.writeToFile(proxy, req, resp, 'SWGT');
+	if (resp['command'] == 'GetGuildInfo') {
+		var i = apiReference.enabledGuilds.length;
+			  while (i--) {
+				if (apiReference.enabledGuilds[i] === resp.guild.guild_info.guild_id) {
+				  if (!(wizardid in apiReference.enabledWizards)) {
+					apiReference.enabledWizards.push(wizardid)
+					}
+				}
+			  }
+	}
+	if (resp['command'] == 'GetServerGuildWarMatchInfo') {
+		var i = apiReference.enabledGuilds.length;
+			  while (i--) {
+				if (apiReference.enabledGuilds[i] === resp.server_guildwar_match_info.guild_id) {
+				  if (!(wizardid in apiReference.enabledWizards)) {
+					apiReference.enabledWizards.push(wizardid)
+					}
+				}
+			  }
+	}
+    if (resp['command'] == 'UpgradeRune') {
+		const originalLevel = req.upgrade_curr;
+		const newLevel = resp.rune.upgrade_curr;
+
+		if (newLevel <= originalLevel) {
+		  return;
+		}
+	}
+	
+	this.writeToFile(proxy, req, resp, 'SWGT');
     if (this.hasCacheMatch(proxy, config, req, resp, cacheP)) return;
     this.uploadToWebService(proxy, config, req, resp, 'SWGT');
 
@@ -454,10 +510,12 @@ module.exports = {
 				//TODO: add opponent guild id object to reference guild names												 
               }
             }
+			
             wizardBattles[k].sendBattles = [];
             wizardFound = true;
           }
         }
+		proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `GGSMI:Wizard Found-${wizardFound}` });
         if (!wizardFound) {
           wizardInfo.wizard_id = req['wizard_id'];
           wizardInfo.siege_rating_id = resp['match_info']['rating_id'];
@@ -472,6 +530,9 @@ module.exports = {
           wizardInfo.sendBattles = [];
           wizardBattles.push(wizardInfo);
         }
+		
+		sendResp = wizardBattles;
+		this.writeToFile(proxy, req, sendResp,'WizardBattles-');
       } catch (e) {
         proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `${resp['command']}-${e.message}` });
       }
@@ -529,7 +590,7 @@ module.exports = {
 					iDefense = (i + 1).toString();
 					battle.defense.units.push(resp.opp_unit_list[iDefense].unit_list[j].unit_info.unit_master_id);
 					} catch (e) {
-						proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `${resp['command']}-Counter Prep-${e.message}` });
+						//proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `${resp['command']}-Counter Prep-${e.message}` });
 				}
 			}
 
@@ -743,6 +804,7 @@ module.exports = {
             if (wizardBattles[k].wizard_id == req['wizard_id']) {
               battle.battleRank = wizardBattles[k].siege_rating_id;
               wizardBattles[k].sendBattles.push(battle);
+			  proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `Wizard Battle ${req['wizard_id']}: ${k}-${resp['command']}` });
             }
           }
         }
@@ -757,6 +819,8 @@ module.exports = {
           for (var k = wizardBattles[wizard].sendBattles.length - 1; k >= 0; k--) {
             //TODO: Handle multiple accounts with GW and Siege going at the same time. match battlekey and wizard. then do battles 1 and 2 and delete from the mon list.
             if (wizardBattles[wizard].sendBattles[k].battleKey == resp.replay_info.battle_key) {
+			  proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `Wizard ${wizard} Battle Key ${resp.replay_info.battle_key}: ${j}-${resp['command']}` });
+            
               wizardBattles[wizard].sendBattles[k].win_lose = resp.replay_info.win_lose;
               wizardBattles[wizard].sendBattles[k].battleDateTime = resp.tvalue - j;
               j++;
@@ -1190,8 +1254,27 @@ module.exports = {
 	
     return false;
   },
+  verifyPacketToSend(proxy, config, req, resp) {
+    verifyCheck = true;
+    if ('wizard_id' in req) {
+      var i = apiReference.enabledWizards.length;
+      while (i--) {
+        if (apiReference.enabledWizards[i] === req.wizard_id) {
+          verifyCheck = true;
+          i = 0;
+        } else {
+          verifyCheck = false;
+        }
+      }
+    } else {
+      verifyCheck = true;
+    }
+    proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: "Verify Guild: " + `${verifyCheck}` + "-" + `${resp['command']}` });
+    return verifyCheck;
+  },
   uploadToWebService(proxy, config, req, resp, endpointType) {
     if (!this.hasAPISettings(config, proxy)) return;
+	if (!this.verifyPacketToSend(proxy,config,req,resp)) return;
     const { command } = req;
 
     var endpoint = "/api/v1";
@@ -1238,12 +1321,10 @@ module.exports = {
       method: 'get',
       uri: endpoint
     };
-<<<<<<< HEAD
+
 	//proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `API Version Check` });
-	  request(options, (error, response) => {
-=======
+
     request(options, (error, response) => {
->>>>>>> e7de1b91da68f03ea5c3ff247f4caedb78351fd2
       if (error) {
         proxy.log({ type: 'error', source: 'plugin', name: this.pluginName, message: `Error: ${error.message}` });
         return;
@@ -1272,28 +1353,18 @@ module.exports = {
       }
     });
   },
-<<<<<<< HEAD
-  checkSiteAPI(proxy, config){
-	  //check site api configuration settings
-	  if (!this.hasAPIEnabled(config, proxy)) {
-		  proxy.log({ type: 'error', source: 'plugin', name: this.pluginName, message: `API Settings not yet configured.` });
-		  return;
-	  }
-  	resp = {};
-	  resp.command = "checkAPIKey";
-    //var endpoint = "/api/guild/swgt/v1";
-	var endpoint = "/api/v1";
-=======
+
+  
   checkSiteAPI(proxy, config) {
     //check site api configuration settings
-    if (!this.hasAPISettings(config, proxy)) {
+    if (!this.hasAPIEnabled(config, proxy)) {
       //proxy.log({ type: 'error', source: 'plugin', name: this.pluginName, message: `API Settings not yet configured.` });
       return;
     }
     resp = {};
     resp.command = "checkAPIKey";
-    var endpoint = "/api/v1";
->>>>>>> e7de1b91da68f03ea5c3ff247f4caedb78351fd2
+    //var endpoint = "/api/v1";
+	var endpoint = "/api/guild/swgt/v1";
 
     let options = {
       method: 'post',
@@ -1310,18 +1381,13 @@ module.exports = {
 
       if (response.statusCode === 200) {
         proxy.log({ type: 'success', source: 'plugin', name: this.pluginName, message: `Successfully connected to ${config.Config.Plugins[pluginName].siteURL}` });
-<<<<<<< HEAD
-		//siteAPIResponse = response.body;
-		//if ('messageType' in siteAPIResponse) {apiReference.messageType  = siteAPIResponse.messageType};
-		//if ('enabledGuilds' in siteAPIResponse) {apiReference.enabledGuilds = siteAPIResponse.enabledGuilds}; 
-      
-		//proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `apiReference: ${apiReference.messageType}` });
-      } else if ( response.statusCode === 401) {
-		    proxy.log({
-=======
+		siteAPIResponse = response.body;
+      if ('messageType' in siteAPIResponse) {apiReference.messageType  = siteAPIResponse.messageType};
+      if ('enabledGuilds' in siteAPIResponse) {apiReference.enabledGuilds = siteAPIResponse.enabledGuilds}; 
+		proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `Guild apiReference: ${apiReference.messageType}` });
       } else if (response.statusCode === 401) {
         proxy.log({
->>>>>>> e7de1b91da68f03ea5c3ff247f4caedb78351fd2
+
           type: 'error',
           source: 'plugin',
           name: this.pluginName,
