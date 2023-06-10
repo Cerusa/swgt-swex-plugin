@@ -2,7 +2,7 @@ const request = require('request');
 const fs = require('fs');
 const path = require('path');
 const pluginName = 'SWGTLogger';
-const pluginVersion = '2023-01-08_0719';
+const pluginVersion = '2023-06-10_0915';
 var wizardBattles = [];
 var sendBattles = [];
 var tempDefenseDeckInfo = [];
@@ -85,7 +85,7 @@ module.exports = {
       'GetServerGuildWarRanking',
       'GetServerGuildWarBattleLogByWizard',
       'GetServerGuildWarDefenseDeckList',
-      //'GetServerGuildWarBaseDeckList',
+      'GetServerGuildWarBaseDeckList',
       //'GetServerGuildWarBaseInfoListForOppView',
       //'GetServerGuildWarContributeList',
 
