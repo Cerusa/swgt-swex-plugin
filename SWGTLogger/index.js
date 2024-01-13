@@ -2,7 +2,7 @@ const request = require('request');
 const fs = require('fs');
 const path = require('path');
 const pluginName = 'SWGTLogger';
-const pluginVersion = '2023-12-22_1237';
+const pluginVersion = '2024-01-13_0740';
 var wizardBattles = [];
 var sendBattles = [];
 var tempDefenseDeckInfo = [];
@@ -219,7 +219,8 @@ module.exports = {
         'tvalue',
         'tzone',
         'server_id',
-        'server_endpoint'
+        'server_endpoint',
+        'unit_storage_normal_list'
       ];
       var wizardInfoRequiredElements = [
         'wizard_id',
