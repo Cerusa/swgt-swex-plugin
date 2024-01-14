@@ -2,8 +2,10 @@ const request = require('request');
 const fs = require('fs');
 const path = require('path');
 const pluginName = 'SWGTLogger';
-const pluginVersion = '2024-01-13_0740';
+const pluginVersion = '2024-01-13_2052';
 var wizardBattles = [];
+const siegeGuildRanking = new Map();
+const worldGuildBattleGuildRanking = new Map();
 var sendBattles = [];
 var tempDefenseDeckInfo = [];
 var observerDefenseInfo = [];
@@ -424,7 +426,6 @@ module.exports = {
     if(resp['command'] == 'GetServerGuildWarDefenseDeckList'){
       try{
         for(var root_element_name in resp){
-          console.log(root_element_name);
           if(root_element_name == "deck_list"){
             var deck_list = resp[root_element_name];
             for (var deck_list_index in deck_list) {
@@ -490,7 +491,7 @@ module.exports = {
   },
   process3MDCRequest(command, proxy, config, req, resp, cache) {
     if (!config.Config.Plugins[pluginName].uploadBattles) return false;
-
+    
     if (resp['command'] == 'GetServerGuildWarMatchInfo') {
       //If wizard id and rating doesn't exist in wizardBattles[] then push to it
       try {
@@ -545,6 +546,9 @@ module.exports = {
       } catch (e) {
         proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `${resp['command']}-${e.message}` });
       }
+      try{
+        siegeGuildRanking.set(resp.guildsiege_ranking_info.guild_id,resp.guildsiege_ranking_info.rating_id);
+      }catch(e){}
     }
     if (resp['command'] == 'GetGuildSiegeMatchupInfo') {
       //If wizard id and rating doesn't exist in wizardBattles[] then push to it
@@ -813,13 +817,13 @@ module.exports = {
         wizardInfo = {}
         wizardFound = false;
         for (var k = wizardBattles.length - 1; k >= 0; k--) {
-          if (wizardBattles[k].wizard_id == req['wizard_id']) {
+          if (wizardBattles[k].wizard_id == req.battle_info.wizard_id) {
             wizardBattles[k].sendBattles = [];
             wizardFound = true;
           }
         }
         if (!wizardFound) {
-          wizardInfo.wizard_id = resp.replay_info.wizard_id;
+          wizardInfo.wizard_id = req.battle_info.wizard_id;
           wizardInfo.sendBattles = [];
           wizardBattles.push(wizardInfo);
         }
@@ -827,78 +831,50 @@ module.exports = {
         proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `${resp['command']}-${e.message}` });
       }
       try {
-        if (resp.replay_info.guild_id == resp.replay_info.opp_guild_id) {
+        if (req.battle_info.guild_id == req.battle_info.opp_guild_id) {
           battle = {}
           battle.command = "3MDCBattleLog";
           battle.battleType = "SiegeTest";
-          battle.wizard_id = resp.replay_info.wizard_id;
-          battle.wizard_name = resp.replay_info.wizard_name;
-          battle.battleKey = resp.replay_info.battle_key;
-          battle.guild_id = resp.replay_info.guild_id;
-          battle.opp_wizard_id = resp.replay_info.opp_wizard_id;
-          battle.opp_wizard_name = resp.replay_info.opp_wizard_name;
-          battle.battleRank = 4001;
+          battle.wizard_id = req.battle_info.wizard_id;
+          battle.wizard_name = req.battle_info.wizard_name;
+          battle.battleKey = req.battle_key;
+          battle.guild_id = req.battle_info.guild_id;
+          battle.opp_wizard_id = req.battle_info.opp_wizard_id;
+          battle.opp_wizard_name = req.battle_info.opp_wizard_name;
+          battle.battleRank = siegeGuildRanking.get(battle.guild_id);
           battle.defense = {}
           battle.counter = {}
 
+          battle.battleDateTime = resp.tvalue;
+          battle.swex_server_id = resp['server_id'];
+          battle.win_lose = req.battle_info.data_exist_list[0];
+
           //prepare the arrays
-          units = [];
           battle.defense.units = [];
           battle.counter.units = [];
-          battle.counter.unique = [];
+          
+          //Defense Mons
           for (var j = 0; j < 3; j++) {
             try {
-
-              //Defense Mons
-              battle.defense.units.push(resp.replay_info.opp_unit_info[j][2]);
-              //Offense Mons
-              battle.counter.units.push(resp.replay_info.unit_info[j][2]);
-              battle.counter.unique.push(resp.replay_info.unit_info[j][1]);
+              battle.defense.units.push(req.battle_info.opp_unit_list[0][j]);
             } catch (e) { }
           }
-          //match up wizard id and push the battle
-          for (var k = wizardBattles.length - 1; k >= 0; k--) {
-            if (wizardBattles[k].wizard_id == req['wizard_id']) {
-              battle.battleRank = wizardBattles[k].siege_rating_id;
-              wizardBattles[k].sendBattles.push(battle);
-              proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `Wizard Battle ${req['wizard_id']}: ${k}-${resp['command']}` });
-            }
+
+          //Offense Mons
+          for (var j = 0; j < 3; j++) {
+            try {
+                battle.counter.units.push(req.battle_info.unit_list[0][j]);
+            } catch (e) { }
+          }
+          //if 3 mons in defense and at least one counter and rank is G1+ then send to webservice
+          if (battle.defense.units.length == 3 && battle.counter.units.length > 0 && battle.battleRank >= 4000) {
+            this.writeToFile(proxy, req, battle, '3MDC-SiegeTest-');
+            this.uploadToWebService(proxy, config, req, battle, '3MDC');
+            proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `Siege Test Battle Processed` });
           }
         }
       } catch (e) {
         proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `${resp['command']}-${e.message}` });
-      }
-
-      //send the request like the siege result to the server
-      var j = 0;
-      try {
-        for (var wizard in wizardBattles) {
-          for (var k = wizardBattles[wizard].sendBattles.length - 1; k >= 0; k--) {
-            //TODO: Handle multiple accounts with GW and Siege going at the same time. match battlekey and wizard. then do battles 1 and 2 and delete from the mon list.
-            if (wizardBattles[wizard].sendBattles[k].battleKey == resp.replay_info.battle_key) {
-              proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `Wizard ${wizard} Battle Key ${resp.replay_info.battle_key}: ${j}-${resp['command']}` });
-
-              wizardBattles[wizard].sendBattles[k].win_lose = resp.replay_info.win_lose;
-              wizardBattles[wizard].sendBattles[k].battleDateTime = resp.tvalue - j;
-              j++;
-              sendResp = wizardBattles[wizard].sendBattles[k];
-              //remove battle from the sendBattlesList
-              wizardBattles[wizard].sendBattles.splice(k, 1);
-              //if 3 mons in offense and defense then send to webservice
-              if (sendResp.defense.units.length == 3 && sendResp.counter.units.length > 0) {
-                this.writeToFile(proxy, req, sendResp, '3MDC-' + k);
-
-                this.uploadToWebService(proxy, config, req, sendResp, '3MDC');
-                proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `Siege Test Battle Processed ${k}` });
-              }
-            }
-          }
-        }
-      } catch (e) {
-        proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `Siege Test Battle Error ${e.message}` });
-      }
-      if (j == 1) {
-        j = 0;
       }
     }
 
@@ -1137,7 +1113,7 @@ module.exports = {
                   sendResp = battle;
                   if (sendResp.defense.units.length == 3 && sendResp.counter.units.length > 0 && sendResp.battleRank >= 0) {
                     req['command'] = "SiegeObserverBattle";
-                    this.writeToFile(proxy, req, sendResp, '3MDC-Obs3-' + j + '-' + k + '-');
+                    this.writeToFile(console, req, sendResp, '3MDC-Obs3-' + j + '-' + k + '-');
                     this.uploadToWebService(proxy, config, req, sendResp, '3MDC');
                     proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `Siege Observer End Processed ${wizardBattles[wizardIndex].observerAttackerList[j].attack_wizard_name}` });
                   }
