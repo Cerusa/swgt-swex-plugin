@@ -2,7 +2,7 @@ const request = require('request');
 const fs = require('fs');
 const path = require('path');
 const pluginName = 'SWGTLogger';
-const pluginVersion = '2024-01-13_2052';
+const pluginVersion = '2024-01-18_1852';
 var wizardBattles = [];
 const siegeGuildRanking = new Map();
 const worldGuildBattleGuildRanking = new Map();
@@ -255,12 +255,14 @@ module.exports = {
         'master_id',
         'level'
       ];
+
+      wizardid = resp['wizard_info']['wizard_id'];
       //Map wizardMonsters to wizard battles for server guild war
       try {
         wizardInfo = {}
         wizardFound = false;
         for (var k = wizardBattles.length - 1; k >= 0; k--) {
-          if (wizardBattles[k].wizard_id == resp['wizard_info']['wizard_id']) {
+          if (wizardBattles[k].wizard_id == wizardid) {
             wizardBattles[k].sendBattles = [];
             wizardFound = true;
             wizardBattles[k].monsterIDMap = {};
@@ -290,7 +292,7 @@ module.exports = {
       //Purge all unused variables
       var i = apiReference.enabledGuilds.length;
       while (i--) {
-        if (apiReference.enabledGuilds[i] === resp.guild_info.guild_id) {
+        if (apiReference.enabledGuilds[i] === resp.guild.guild_info.guild_id) {
           if (!(wizardid in apiReference.enabledWizards)) {
             apiReference.enabledWizards.push(wizardid)
           }
