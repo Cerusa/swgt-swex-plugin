@@ -2,7 +2,7 @@ const request = require('request');
 const fs = require('fs');
 const path = require('path');
 const pluginName = 'SWGTLogger';
-const pluginVersion = '2024-01-18_1852';
+const pluginVersion = '2024-01-19_0632';
 var wizardBattles = [];
 const siegeGuildRanking = new Map();
 const worldGuildBattleGuildRanking = new Map();
@@ -404,6 +404,7 @@ module.exports = {
     }
 
     if (resp['command'] == 'GetGuildInfo') {
+      wizardid = req['wizard_id'];
       var i = apiReference.enabledGuilds.length;
       while (i--) {
         if (apiReference.enabledGuilds[i] === resp.guild.guild_info.guild_id) {
@@ -414,6 +415,7 @@ module.exports = {
       }
     }
     if (resp['command'] == 'GetServerGuildWarMatchInfo') {
+      wizardid = req['wizard_id'];
       var i = apiReference.enabledGuilds.length;
       while (i--) {
         if (apiReference.enabledGuilds[i] === resp.server_guildwar_match_info.guild_id) {
