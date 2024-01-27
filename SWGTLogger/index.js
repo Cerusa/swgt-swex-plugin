@@ -2,7 +2,7 @@ const request = require('request');
 const fs = require('fs');
 const path = require('path');
 const pluginName = 'SWGTLogger';
-const pluginVersion = '2024-01-19_0632';
+const pluginVersion = '2024-01-27_0724';
 var wizardBattles = [];
 const siegeGuildRanking = new Map();
 const worldGuildBattleGuildRanking = new Map();
@@ -89,6 +89,7 @@ module.exports = {
       'GetServerGuildWarBattleLogByWizard',
       'GetServerGuildWarDefenseDeckList',
       'GetServerGuildWarBaseDeckList',
+      'GetServerGuildWarParticipationInfo',//rating_id
       //'GetServerGuildWarBaseInfoListForOppView',
       //'GetServerGuildWarContributeList',
 
@@ -114,9 +115,13 @@ module.exports = {
       'BattleGuildSiegeResult',
       'GetGuildSiegeMatchupInfo',
 
-      //TestingSiegeReplays
+      //SiegeTest
       'GetGuildSiegeRankingInfo',//rating_id
       'SetGuildSiegeBattleReplayData',
+
+      //WorldGuildBattleTest
+      'GetServerGuildWarParticipationInfo',//rating_id
+      'SetServerGuildWarBattleReplayData',
 
       //AttackViewerInstance
       'GetGuildSiegeBaseDefenseUnitList',
@@ -206,6 +211,16 @@ module.exports = {
   processRequest(command, proxy, config, req, resp, cache) {
     //if (command == "HubUserLogin")
     //  if (!config.Config.Plugins[pluginName].sendCharacterJSON) return;
+
+    
+    if(resp['command'] == 'GetServerGuildWarParticipationInfo'){
+      try{
+        worldGuildBattleGuildRanking.set(resp.ranking_info.guild_id,resp.ranking_info.rating_id);
+      }catch(e){
+        proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `${resp['command']}-${e.message}` });
+      }
+      return;
+    }
 
     //Clean HubUserLogin resp
     if (resp['command'] == 'HubUserLogin') {
@@ -525,6 +540,10 @@ module.exports = {
       } catch (e) {
         proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `${resp['command']}-${e.message}` });
       }
+      try{
+        if(worldGuildBattleGuildRanking.has(resp.server_guildwar_match_info.guild_id) == false)
+          worldGuildBattleGuildRanking.set(resp.server_guildwar_match_info.guild_id,resp.server_guildwar_match_info.match_rating_id);
+      }catch(e){}
     }
     if (resp['command'] == 'GetGuildSiegeRankingInfo') {
       //If wizard id and rating doesn't exist in wizardBattles[] then push to it
@@ -553,6 +572,15 @@ module.exports = {
       try{
         siegeGuildRanking.set(resp.guildsiege_ranking_info.guild_id,resp.guildsiege_ranking_info.rating_id);
       }catch(e){}
+    }
+    
+    if(resp['command'] == 'GetServerGuildWarParticipationInfo'){
+      try{
+        worldGuildBattleGuildRanking.set(resp.ranking_info.guild_id,resp.ranking_info.rating_id);
+      }catch(e){
+        proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `${resp['command']}-${e.message}` });
+      }
+      return;
     }
     if (resp['command'] == 'GetGuildSiegeMatchupInfo') {
       //If wizard id and rating doesn't exist in wizardBattles[] then push to it
@@ -843,6 +871,7 @@ module.exports = {
           battle.wizard_name = req.battle_info.wizard_name;
           battle.battleKey = req.battle_key;
           battle.guild_id = req.battle_info.guild_id;
+          battle.guild_name = req.battle_info.guild_name;
           battle.opp_wizard_id = req.battle_info.opp_wizard_id;
           battle.opp_wizard_name = req.battle_info.opp_wizard_name;
           battle.battleRank = siegeGuildRanking.get(battle.guild_id);
@@ -851,7 +880,7 @@ module.exports = {
 
           battle.battleDateTime = resp.tvalue;
           battle.swex_server_id = resp['server_id'];
-          battle.win_lose = req.battle_info.data_exist_list[0];
+          battle.win_lose = req.battle_info.result_list[0];
 
           //prepare the arrays
           battle.defense.units = [];
@@ -875,6 +904,78 @@ module.exports = {
             this.writeToFile(proxy, req, battle, '3MDC-SiegeTest-');
             this.uploadToWebService(proxy, config, req, battle, '3MDC');
             proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `Siege Test Battle Processed` });
+          }
+        }
+      } catch (e) {
+        proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `${resp['command']}-${e.message}` });
+      }
+    }
+
+    if (req['command'] == 'SetServerGuildWarBattleReplayData') {
+      //If wizard id and rating doesn't exist in wizardBattles[] then push to it
+      try {
+        wizardInfo = {}
+        wizardFound = false;
+        for (var k = wizardBattles.length - 1; k >= 0; k--) {
+          if (wizardBattles[k].wizard_id == req.battle_info.wizard_id) {
+            wizardBattles[k].sendBattles = [];
+            wizardFound = true;
+          }
+        }
+        if (!wizardFound) {
+          wizardInfo.wizard_id = req.battle_info.wizard_id;
+          wizardInfo.sendBattles = [];
+          wizardBattles.push(wizardInfo);
+        }
+      } catch (e) {
+        proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `${resp['command']}-${e.message}` });
+      }
+      try {
+        if (req.battle_info.guild_id == req.battle_info.opp_guild_id) {
+          battle = {}
+          battle.command = "3MDCBattleLog";
+          battle.battleType = "WorldGuildBattleTest";
+          battle.wizard_id = req.battle_info.wizard_id;
+          battle.wizard_name = req.battle_info.wizard_name;
+          battle.battleKey = req.battle_key;
+          battle.guild_id = req.battle_info.guild_id;
+          battle.guild_name = req.battle_info.guild_name;
+          battle.attacker_server_id = req.battle_info.server_type;
+          battle.opp_wizard_id = req.battle_info.opp_wizard_id;
+          battle.opp_wizard_name = req.battle_info.opp_wizard_name;
+          battle.opp_guild_id = req.battle_info.opp_guild_id;
+          battle.opp_guild_name = req.battle_info.opp_guild_name;
+          battle.opp_server_id = req.battle_info.opp_server_type;
+          battle.battleRank = worldGuildBattleGuildRanking.get(battle.guild_id);
+          battle.defense = {}
+          battle.counter = {}
+
+          battle.battleDateTime = resp.tvalue;
+          battle.swex_server_id = resp['server_id'];
+          battle.win_lose = req.battle_info.result_list[0];
+
+          //prepare the arrays
+          battle.defense.units = [];
+          battle.counter.units = [];
+          
+          //Defense Mons
+          for (var j = 0; j < 3; j++) {
+            try {
+              battle.defense.units.push(req.battle_info.opp_unit_list[0][j]);
+            } catch (e) { }
+          }
+
+          //Offense Mons
+          for (var j = 0; j < 3; j++) {
+            try {
+                battle.counter.units.push(req.battle_info.unit_list[0][j]);
+            } catch (e) { }
+          }
+          //if 3 mons in defense and at least one counter and rank is G1+ then send to webservice
+          if (battle.defense.units.length == 3 && battle.counter.units.length > 0 && battle.battleRank >= 4000) {
+            this.writeToFile(proxy, req, battle, '3MDC-WGBTest-');
+            this.uploadToWebService(proxy, config, req, battle, '3MDC');
+            proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `WGB Test Battle Processed` });
           }
         }
       } catch (e) {
