@@ -2,7 +2,7 @@ const request = require('request');
 const fs = require('fs');
 const path = require('path');
 const pluginName = 'SWGTLogger';
-const pluginVersion = '2024-01-27_0724';
+const pluginVersion = '2024-02-03_1024';
 var wizardBattles = [];
 const siegeGuildRanking = new Map();
 const worldGuildBattleGuildRanking = new Map();
@@ -237,7 +237,8 @@ module.exports = {
         'tzone',
         'server_id',
         'server_endpoint',
-        'unit_storage_normal_list'
+        'unit_storage_normal_list',
+        'unit_collection'
       ];
       var wizardInfoRequiredElements = [
         'wizard_id',
@@ -307,9 +308,11 @@ module.exports = {
       //Purge all unused variables
       var i = apiReference.enabledGuilds.length;
       while (i--) {
-        if (apiReference.enabledGuilds[i] === resp.guild.guild_info.guild_id) {
-          if (!(wizardid in apiReference.enabledWizards)) {
-            apiReference.enabledWizards.push(wizardid)
+        if ('guild' in req) {
+          if (apiReference.enabledGuilds[i] === resp.guild.guild_info.guild_id) {
+            if (!(wizardid in apiReference.enabledWizards)) {
+              apiReference.enabledWizards.push(wizardid)
+            }
           }
         }
       }
@@ -422,9 +425,11 @@ module.exports = {
       wizardid = req['wizard_id'];
       var i = apiReference.enabledGuilds.length;
       while (i--) {
-        if (apiReference.enabledGuilds[i] === resp.guild.guild_info.guild_id) {
-          if (!(wizardid in apiReference.enabledWizards)) {
-            apiReference.enabledWizards.push(wizardid)
+        if('guild' in resp){
+          if (apiReference.enabledGuilds[i] === resp.guild.guild_info.guild_id) {
+            if (!(wizardid in apiReference.enabledWizards)) {
+              apiReference.enabledWizards.push(wizardid)
+            }
           }
         }
       }
