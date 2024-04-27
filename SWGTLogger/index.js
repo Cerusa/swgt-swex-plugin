@@ -2,7 +2,7 @@ const request = require('request');
 const fs = require('fs');
 const path = require('path');
 
-const version = '2.0.2';
+const version = '2.0.3';
 const pluginName = 'SWGTLogger';
 var wizardBattles = [];
 const siegeGuildRanking = new Map();
@@ -61,6 +61,7 @@ module.exports = {
     var listenToSWGTCommands = [
       //Character JSON and Guild Member List
       'HubUserLogin',
+      'VisitFriend',
 
       //Guild Info
       'getGuildAttendInfo',
