@@ -2,7 +2,7 @@ const request = require('request');
 const fs = require('fs');
 const path = require('path');
 
-const version = '2.0.3';
+const version = '2.0.4';
 const pluginName = 'SWGTLogger';
 var wizardBattles = [];
 const siegeGuildRanking = new Map();
@@ -78,6 +78,7 @@ module.exports = {
       'GetGuildSiegeBaseDefenseUnitList',
       'GetGuildSiegeBaseDefenseUnitListPreset',
       'GetGuildSiegeRankingInfo',
+      'GetGuildSiegeDefenseDeckByWizardId',
 
       //Labyrinth
       'GetGuildMazeStatusInfo',
