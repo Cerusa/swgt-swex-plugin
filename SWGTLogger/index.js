@@ -2,7 +2,7 @@ const request = require('request');
 const fs = require('fs');
 const path = require('path');
 
-const version = '2.0.4';
+const version = '2.0.5';
 const pluginName = 'SWGTLogger';
 var wizardBattles = [];
 const siegeGuildRanking = new Map();
@@ -24,7 +24,7 @@ module.exports = {
   autoUpdate: {
     versionURL: 'https://swgt.io/staticContent/SWGTLogger.yml'
   },
-  pluginDescription: 'For SWGT Patreon subscribers to automatically ' +
+  pluginDescription: 'For SWGT Guild and Guild+ Patreon subscribers to automatically ' +
     'upload various Summoners War data. Enable Character JSON to automatically update ' +
     'your guild\'s members and your player\'s units/runes/artifacts. ' +
     'Enable battle uploading to automatically log defenses and counters.',
@@ -52,7 +52,6 @@ module.exports = {
       { command: 'GetGuildInfo', timer: 60000 },
       { command: 'GetGuildWarRanking', timer: 300000 },
       { command: 'GetGuildWarMatchLog', timer: 60000 },
-      { command: 'GetGuildSiegeMatchupInfo', timer: 60000 },
       { command: 'GetGuildSiegeRankingInfo', timer: 300000 },
       { command: 'GetGuildMazeStatusInfo', timer: 300000 },
       { command: 'getGuildBossBattleInfo', timer: 300000 }
@@ -219,7 +218,6 @@ module.exports = {
     //if (command == "HubUserLogin")
     //  if (!config.Config.Plugins[pluginName].sendCharacterJSON) return;
 
-    
     if(resp['command'] == 'GetServerGuildWarParticipationInfo'){
       try{
         worldGuildBattleGuildRanking.set(resp.ranking_info.guild_id,resp.ranking_info.rating_id);
@@ -353,11 +351,7 @@ module.exports = {
       try {
         //wizard id from request---guild id in member list---guild id
         wizardid = req['wizard_id'];
-        packetInfo = {};
-        packetInfo.guilds = [];
 
-        blueGuildID = 0;
-        bluePosID = 0;
         for (var wizard in resp.wizard_info_list) {
           if (wizardid == resp.wizard_info_list[wizard].wizard_id) {
             blueGuildID = resp.wizard_info_list[wizard].guild_id;
@@ -372,55 +366,6 @@ module.exports = {
             }
           }
         }
-
-        yellowPosID = 0;
-        redPosID = 0;
-        for (var guild in resp.guild_list) {
-          if (blueGuildID == resp.guild_list[guild].guild_id) {
-            bluePosID = resp.guild_list[guild].pos_id;
-            if (bluePosID == 1) {
-              yellowPosID = 2;
-              redPosID = 3;
-            }
-            if (bluePosID == 2) {
-              yellowPosID = 3;
-              redPosID = 1;
-            }
-            if (bluePosID == 3) {
-              yellowPosID = 1;
-              redPosID = 2;
-            }
-          }
-        }
-        for (var guild in resp.guild_list) {
-          guildInfo = {}
-          guildInfo.guild_id = resp.guild_list[guild].guild_id;
-          guildInfo.pos_id = resp.guild_list[guild].pos_id;
-          if (bluePosID == guildInfo.pos_id)
-            guildInfo.color = "blue";
-          if (yellowPosID == guildInfo.pos_id)
-            guildInfo.color = "yellow";
-          if (redPosID == guildInfo.pos_id)
-            guildInfo.color = "red";
-          towerInfo = [];
-          for (var base in resp.base_list) {
-            if (resp.base_list[base].guild_id == resp.guild_list[guild].guild_id && resp.base_list[base].base_type > 1) {
-              towerInfo.push(resp.base_list[base].base_number);
-            }
-          }
-          guildInfo.towers = towerInfo;
-          packetInfo.guilds.push(guildInfo);
-        }
-        packetInfo.command = "SiegeBaseColors";
-        packetInfo.siege_id = resp.match_info.siege_id;
-        packetInfo.match_id = resp.match_info.match_id;
-        packetInfo.guild_id = blueGuildID;
-        packetInfo.date_time_stamp = resp.tvalue;
-
-        resp2 = packetInfo;
-        this.writeToFile(proxy, req, resp2, 'SWGT');
-        if (this.hasCacheMatch(proxy, config, req, resp2, cache)) return;
-        this.uploadToWebService(proxy, config, req, resp2, 'SWGT');
       } catch (e) {
         proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `${resp2['command']}-${e.message}` });
       }
@@ -516,6 +461,76 @@ module.exports = {
           }
         }
       }catch(e){}
+    }
+
+    if(resp['command'] == 'GetGuildSiegeMatchupInfo' || resp['command'] == 'GetGuildSiegeMatchupInfoForFinished'){
+      try{
+        let siegeID = resp.match_info.siege_id;
+        let matchID = resp.match_info.match_id;
+        let pos1guild = 0;
+        let pos2guild = 0;
+        let pos3guild = 0;
+
+        for(i = 0; i < resp.guild_list.length; i++){
+          if(i == 0)
+            pos1guild = resp.guild_list[i].guild_id;
+          if(i == 1)
+            pos2guild = resp.guild_list[i].guild_id;
+          if(i == 2)
+            pos3guild = resp.guild_list[i].guild_id;
+        }
+        
+        if(siegeID > 0 && matchID > 0 && pos1guild > 0 && pos2guild > 0){
+            //Check if we can send the siege matchup info
+            var endpoint = "/api/guild/swgt/v1";
+
+            let options = {
+              method: 'get',
+              uri: config.Config.Plugins[pluginName].siteURL + endpoint + 
+                '?apiKey=' +config.Config.Plugins[pluginName].apiKey+
+                '&command=CanSendGuildSiegeMatchupInfo'+
+                '&siegeID='+siegeID+
+                '&matchID='+matchID+
+                '&pos1guild='+pos1guild+
+                '&pos2guild='+pos2guild+
+                '&pos3guild='+pos3guild
+              ,
+              json: true
+            };
+
+            proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `Check API if can send siege matchup info` });
+
+            request(options, (error, response) => {
+              if (error) {
+                proxy.log({ type: 'error', source: 'plugin', name: this.pluginName, message: `Error: ${error.message}` });
+                return;
+              }
+              if (response.statusCode === 200) {
+                canSendGuildSiegeMatchupInfoResponse = response.body;
+                if (canSendGuildSiegeMatchupInfoResponse.message == "Y") {
+                  proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `OK to send siege matchup info` });
+                  this.writeToFile(proxy, req, resp, 'SWGT');
+                  proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `ZZZZ1 upload to web service` });
+                  this.uploadToWebService(proxy, config, req, resp, 'SWGT');
+                  return;
+                } else {
+                  proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `CANNOT send siege matchup info` });
+                  return;
+                }
+              } else {
+                proxy.log({
+                  type: 'error',
+                  source: 'plugin',
+                  name: this.pluginName,
+                  message: `Server responded with code: ${response.statusCode} = ${response.body}`
+                });
+              }
+            });
+        }
+      }catch(e){
+        proxy.log({ type: 'debug', source: 'plugin', name: this.pluginName, message: `${resp['command']}-${e.message}` });
+      }
+      return;
     }
 
     this.writeToFile(proxy, req, resp, 'SWGT');
@@ -1518,7 +1533,6 @@ module.exports = {
     }
     resp = {};
     resp.command = "checkAPIKey";
-    //var endpoint = "/api/v1";
     var endpoint = "/api/guild/swgt/v1";
 
     let options = {
