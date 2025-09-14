@@ -4,9 +4,9 @@
   "description": "Extract guild war information for use in SWGT",
   "main": "index.js",
   "dependencies": {
-    "asar": "^2.0.1",
-    "axios": "^0.27.2",
-    "request": "^2.88.0"
+    "asar": "^3.2.0",
+    "axios": "^1.12.1",
+    "request": "^2.88.2"
   },
   "devDependencies": {},
   "scripts": {

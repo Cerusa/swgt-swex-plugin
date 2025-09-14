@@ -2,7 +2,7 @@ const request = require('request');
 const fs = require('fs');
 const path = require('path');
 
-const version = '2.0.6';
+const version = '2.1.0';
 const pluginName = 'SWGTLogger';
 var wizardBattles = [];
 const siegeGuildRanking = new Map();
@@ -89,7 +89,7 @@ module.exports = {
 
                //World Guild Battle (Server Guild War)
                'GetServerGuildWarBattleLogByGuild',
-               'GetServerGuildWarMatchLog',
+               //'GetServerGuildWarMatchLog', //<--Removed because Com2us broke it with special characters
                'GetServerGuildWarMatchInfo',
                'GetServerGuildWarRanking',
                'GetServerGuildWarBattleLogByWizard',
@@ -99,6 +99,7 @@ module.exports = {
                //'GetServerGuildWarBaseInfoListForOppView',
                //'GetServerGuildWarContributeList',
                'GetServerGuildWarBattleLogByWizardCurrent',
+               'GetServerGuildWarLastMatchResult',
 
                //Monster Subjugation
                'getGuildBossBattleInfo',
@@ -157,6 +158,16 @@ module.exports = {
                     this.processRequest(command, proxy, config, req, gRespCopy, cache);
                });
           }
+          //Handle broken commands
+          proxy.on('apiCommand', (req, resp) => {
+               const { command } = resp;
+               if (command.startsWith('GetServerGuildWarMatc') && command.endsWith('Log')) {
+                    var gRespCopy = JSON.parse(JSON.stringify(resp)); //Deep copy
+                    gRespCopy.swgtGuildPluginVersion = version;
+                    this.processRequest(command, proxy, config, req, gRespCopy, cache);
+               }
+          });
+          
           //Attach 3MDC events if enabled
           if (config.Config.Plugins[pluginName].uploadBattles) {
                for (var commandIndex in listenTo3MDCCommands) {
