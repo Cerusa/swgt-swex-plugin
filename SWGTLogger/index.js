@@ -2,7 +2,7 @@ const request = require('request');
 const fs = require('fs');
 const path = require('path');
 
-const version = '2.1.0';
+const version = '2.2.0';
 const pluginName = 'SWGTLogger';
 var wizardBattles = [];
 const siegeGuildRanking = new Map();
@@ -153,7 +153,7 @@ module.exports = {
           for (var commandIndex in listenToSWGTCommands) {
                var command = listenToSWGTCommands[commandIndex];
                proxy.on(command, (req, resp) => {
-                    var gRespCopy = JSON.parse(JSON.stringify(resp)); //Deep copy
+                    var gRespCopy = structuredClone(resp); //Deep copy
                     gRespCopy.swgtGuildPluginVersion = version;
                     this.processRequest(command, proxy, config, req, gRespCopy, cache);
                });
@@ -162,7 +162,7 @@ module.exports = {
           proxy.on('apiCommand', (req, resp) => {
                const { command } = resp;
                if (command.startsWith('GetServerGuildWarMatc') && command.endsWith('Log')) {
-                    var gRespCopy = JSON.parse(JSON.stringify(resp)); //Deep copy
+                    var gRespCopy = structuredClone(resp); //Deep copy
                     gRespCopy.swgtGuildPluginVersion = version;
                     this.processRequest(command, proxy, config, req, gRespCopy, cache);
                }
@@ -173,7 +173,7 @@ module.exports = {
                for (var commandIndex in listenTo3MDCCommands) {
                     var command = listenTo3MDCCommands[commandIndex];
                     proxy.on(command, (req, resp) => {
-                         var gRespCopy = JSON.parse(JSON.stringify(resp)); //Deep copy
+                         var gRespCopy = structuredClone(resp); //Deep copy
                          gRespCopy.swgtGuildPluginVersion = version;
                          this.process3MDCRequest(command, proxy, config, req, gRespCopy, cache);
                     });
@@ -185,7 +185,7 @@ module.exports = {
                for (var commandIndex in listenToSWGTHistoryCommands) {
                     var command = listenToSWGTHistoryCommands[commandIndex];
                     proxy.on(command, (req, resp) => {
-                         var gRespCopy = JSON.parse(JSON.stringify(resp)); //Deep copy
+                         var gRespCopy = structuredClone(resp); //Deep copy
                          gRespCopy.swgtGuildPluginVersion = version;
                          this.processSWGTHistoryRequest(command, proxy, config, req, gRespCopy, cache);
                     });
@@ -335,7 +335,7 @@ module.exports = {
                for (var i in requiredHubUserLoginElements) {
                     //Deep copy so we can modify
                     try {
-                         pruned[requiredHubUserLoginElements[i]] = JSON.parse(JSON.stringify(resp[requiredHubUserLoginElements[i]]));
+                         pruned[requiredHubUserLoginElements[i]] = structuredClone(resp[requiredHubUserLoginElements[i]]);
                     } catch (error) { }
                }
                //Move runes/artifact from monsters to inventory (and detach from monster id)
@@ -1400,7 +1400,7 @@ module.exports = {
      },
      hasCacheMatch(proxy, config, req, resp, cache) {
           if (!this.hasAPISettings(config, proxy)) return false;
-          var respCopy = JSON.parse(JSON.stringify(resp)); //Deep copy
+          var respCopy = structuredClone(resp); //Deep copy
           var action = respCopy['command'];
 
           //Remove stuff that is auto generated, time stamp or request related
