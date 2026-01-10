@@ -2,7 +2,7 @@ const request = require('request');
 const fs = require('fs');
 const path = require('path');
 
-const version = '2.2.0';
+const version = '2.3.0';
 const pluginName = 'SWGTLogger';
 var wizardBattles = [];
 const siegeGuildRanking = new Map();
@@ -78,6 +78,8 @@ module.exports = {
                'GetGuildSiegeBaseDefenseUnitListPreset',
                'GetGuildSiegeRankingInfo',
                'GetGuildSiegeDefenseDeckByWizardId',
+               'getBattleReplayList','GetBattleReplayList',
+               'getBattleReplayInfo','GetBattleReplayInfo',
 
                //Labyrinth
                'GetGuildMazeStatusInfo',
@@ -549,6 +551,40 @@ module.exports = {
                if ('log_type' in resp && resp['log_type'] == 2) {
                     //Allow
                } else {
+                    return; //Skip
+               }
+          }
+
+          if(req['command'] == 'getBattleReplayList' || req['command'] == 'GetBattleReplayList'){
+               if ('type' in req && req['type'] == 2) {
+                    //Allow (Siege)
+
+                    //Clean out all non needed data
+                    try {
+                         resp.replay_list = resp.replay_list.filter(item => 
+                              typeof item.battle_info?.desc === 'string' && 
+                              item.battle_info?.desc?.trim() !== '' && 
+                              apiReference.enabledGuilds.includes(item.battle_info?.guild_id)
+                         );
+                    } catch (e) { }
+               } else {
+                    return; //Skip
+               }
+          }
+          if(resp['command'] == 'getBattleReplayInfo' || resp['command'] == 'GetBattleReplayInfo'){
+               try {
+                    let replay_info = resp.replay_info;
+
+                    if (
+                         apiReference.enabledGuilds.includes(replay_info?.battle_info?.guild_id) &&
+                         typeof replay_info?.battle_info?.desc === 'string' &&
+                         replay_info.battle_info.desc.trim() !== ''
+                    ) {
+                         //Allow
+                    } else {
+                         return; //Skip
+                    }
+               } catch (e) { 
                     return; //Skip
                }
           }
