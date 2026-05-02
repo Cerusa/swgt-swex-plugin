@@ -2,7 +2,7 @@ const request = require('request');
 const fs = require('fs');
 const path = require('path');
 
-const version = '2.3.0';
+const version = '2.4.0';
 const pluginName = 'SWGTLogger';
 var wizardBattles = [];
 const siegeGuildRanking = new Map();
@@ -61,6 +61,7 @@ module.exports = {
                //Character JSON and Guild Member List
                'HubUserLogin',
                'VisitFriend',
+               'getCommunityDeckRecommendUnitInfo',
 
                //Guild Info
                'getGuildAttendInfo',
